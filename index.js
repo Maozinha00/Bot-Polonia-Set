@@ -60,14 +60,14 @@ client.once("ready", () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // 🟣 PAINEL
+  // 🟣 PAINEL SET
   if (interaction.isChatInputCommand() && interaction.commandName === "painelset") {
 
     const embed = new EmbedBuilder()
       .setTitle("🇵🇱 PAINEL DE SET - POLÔNIA RP")
       .setDescription(
         "Clique no botão abaixo para solicitar seu set.\n\n" +
-        "📌 Informe Nome RP, ID, Cargo e descrição RP\n" +
+        "📌 Nome RP, ID, Cargo e descrição obrigatórios\n" +
         "⚠️ Pedidos falsos serão recusados"
       )
       .setColor("#ff0000");
@@ -87,11 +87,10 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   // =========================
-  // 🧾 BOTÕES
+  // 🧾 BOTÃO
   // =========================
   if (interaction.isButton()) {
 
-    // 🔵 ABRIR FORM
     if (interaction.customId === "abrir_set") {
 
       const modal = new ModalBuilder()
@@ -153,15 +152,30 @@ client.on("interactionCreate", async (interaction) => {
 
       const guildMember = await interaction.guild.members.fetch(userId);
 
+      // =========================
+      // ✅ APROVAR
+      // =========================
       if (action === "aprovar") {
 
         await guildMember.roles.add(ROLE_SET_ID);
 
+        const currentName = guildMember.displayName || "Jogador";
+        const newName = `${currentName} | ${userId}`;
+
+        try {
+          await guildMember.setNickname(newName);
+        } catch (err) {
+          console.log("❌ Erro ao renomear:", err.message);
+        }
+
         return interaction.reply({
-          content: `✅ Pedido aprovado! Cargo **${cargo}** entregue para <@${userId}>`
+          content: `✅ Pedido aprovado!\n🎖️ Cargo: **${cargo}**\n✏️ Nome atualizado para **${newName}**`
         });
       }
 
+      // =========================
+      // ❌ RECUSAR
+      // =========================
       if (action === "recusar") {
 
         return interaction.reply({
@@ -172,7 +186,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   // =========================
-  // 📩 FORM SUBMIT (PRONTUÁRIO)
+  // 📩 MODAL SUBMIT (PRONTUÁRIO)
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -184,9 +198,8 @@ client.on("interactionCreate", async (interaction) => {
     const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
     const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
-    // 📁 PRONTUÁRIO
     const prontuario = new EmbedBuilder()
-      .setTitle("📁 PRONTUÁRIO DE SOLICITAÇÃO")
+      .setTitle("📁 PRONTUÁRIO DE SET")
       .setColor("#2b2d31")
       .addFields(
         { name: "👤 Nome", value: `**${nome}**`, inline: true },
@@ -197,7 +210,6 @@ client.on("interactionCreate", async (interaction) => {
       )
       .setFooter({ text: `Prontuário ID: ${id}` });
 
-    // 🔘 BOTÕES
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`aprovar_${interaction.user.id}_${cargo}`)
@@ -210,13 +222,11 @@ client.on("interactionCreate", async (interaction) => {
         .setStyle(ButtonStyle.Danger)
     );
 
-    // 📥 histórico
     await requestChannel.send({
       content: `📁 Novo prontuário recebido`,
       embeds: [prontuario]
     });
 
-    // 📤 aprovação
     await approvalChannel.send({
       content: `🚨 Pedido aguardando aprovação`,
       embeds: [prontuario],
@@ -224,7 +234,7 @@ client.on("interactionCreate", async (interaction) => {
     });
 
     return interaction.reply({
-      content: "📨 Seu prontuário foi enviado para análise!",
+      content: "📨 Seu pedido foi enviado para análise!",
       ephemeral: true
     });
   }

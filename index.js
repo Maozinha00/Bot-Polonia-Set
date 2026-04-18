@@ -35,7 +35,7 @@ const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName("painelset")
-    .setDescription("Abrir painel da Família Polônia RP")
+    .setDescription("Abrir painel de solicitação de set")
     .toJSON()
 ];
 
@@ -60,40 +60,22 @@ client.once("ready", () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // 🟣 PAINEL DA FACÇÃO
+  // 🟣 PAINEL
   if (interaction.isChatInputCommand() && interaction.commandName === "painelset") {
 
     const embed = new EmbedBuilder()
-      .setTitle("🇵🇱 FAMÍLIA POLÔNIA RP")
+      .setTitle("🇵🇱 PAINEL DE SET - POLÔNIA RP")
       .setDescription(
-`No submundo ninguém sobrevive sozinho. Aqui, lealdade vale mais que sangue.
-
-A Família Polônia não é apenas uma facção — é uma organização silenciosa que controla ruas, negócios e informações sem chamar atenção.
-
-Respeito se conquista. Traição se paga.
-Cada membro tem seu papel, cada decisão tem consequência.
-
-Aqui não existe segunda chance para erros.
-Ou você faz parte da família… ou vira história.
-
-━━━━━━━━━━━━━━
-⚖️ REGRAS:
-• Lealdade acima de tudo  
-• Sigilo total das operações  
-• Respeito à hierarquia  
-• Nenhuma ação sem ordem superior  
-
-💀 “Quem entra, não sai igual. Quem trai, não sai vivo.”
-━━━━━━━━━━━━━━
-
-Clique abaixo para entrar na família.`
+        "Clique no botão abaixo para solicitar seu set.\n\n" +
+        "📌 Nome RP, ID, Cargo e descrição obrigatórios\n" +
+        "⚠️ Pedidos falsos serão recusados"
       )
-      .setColor("#0a0a0a");
+      .setColor("#ff0000");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("abrir_set")
-        .setLabel("Entrar na Família")
+        .setLabel("Solicitar Set")
         .setEmoji("🧾")
         .setStyle(ButtonStyle.Success)
     );
@@ -105,13 +87,13 @@ Clique abaixo para entrar na família.`
   }
 
   // =========================
-  // 🧾 FORMULÁRIO
+  // 🧾 BOTÃO + MODAL
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("Recrutamento Família Polônia");
+      .setTitle("Solicitação de Set");
 
     const nome = new TextInputBuilder()
       .setCustomId("nome")
@@ -127,13 +109,13 @@ Clique abaixo para entrar na família.`
 
     const cargo = new TextInputBuilder()
       .setCustomId("cargo")
-      .setLabel("Função desejada na família")
+      .setLabel("Cargo desejado")
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
     const crime = new TextInputBuilder()
       .setCustomId("crime")
-      .setLabel("Histórico / Descrição RP")
+      .setLabel("Descrição RP / Crime")
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
@@ -159,7 +141,7 @@ Clique abaixo para entrar na família.`
 
     if (!member.roles.cache.has(LEADER_ROLE_ID)) {
       return interaction.reply({
-        content: "❌ Apenas líderes podem aprovar recrutamentos.",
+        content: "❌ Apenas líderes podem aprovar pedidos.",
         ephemeral: true
       });
     }
@@ -171,30 +153,33 @@ Clique abaixo para entrar na família.`
     // ❌ RECUSAR
     if (action === "recusar") {
       return interaction.reply({
-        content: `❌ Recrutamento recusado para <@${userId}>`
+        content: `❌ Pedido recusado para <@${userId}>`
       });
     }
 
-    // ✅ APROVAR
+    // =========================
+    // ✅ APROVAR (NICKNAME SIMPLES)
+    // =========================
     if (action === "aprovar") {
 
       await guildMember.roles.add(ROLE_SET_ID);
 
-      const currentName = guildMember.displayName || "Membro";
-      const newNick = `${currentName} | ${userId} | ${cargo}`;
+      const nomeAtual = guildMember.displayName || "Jogador";
+
+      // ✏️ FORMATO FINAL: Nome | ID
+      const newNick = `${nomeAtual} | ${userId}`;
 
       try {
         await guildMember.setNickname(newNick);
       } catch (err) {
-        console.log("❌ Erro ao renomear:", err.message);
+        console.log("❌ Erro ao alterar apelido:", err.message);
       }
 
       return interaction.reply({
         content:
-          `✅ **MEMBRO ACEITO NA FAMÍLIA POLÔNIA**\n\n` +
+          `✅ **APROVADO COM SUCESSO**\n\n` +
           `👤 Membro: <@${userId}>\n` +
-          `🎖️ Função: **${cargo}**\n` +
-          `✏️ Apelido atualizado: **${newNick}**`
+          `✏️ Novo apelido: **${newNick}**`
       });
     }
   }
@@ -213,14 +198,14 @@ Clique abaixo para entrar na família.`
     const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
     const prontuario = new EmbedBuilder()
-      .setTitle("📁 PRONTUÁRIO - FAMÍLIA POLÔNIA")
-      .setColor("#1a1a1a")
+      .setTitle("📁 PRONTUÁRIO DE SET")
+      .setColor("#2b2d31")
       .addFields(
         { name: "👤 Nome", value: `**${nome}**`, inline: true },
         { name: "🆔 ID", value: `**${id}**`, inline: true },
-        { name: "🎖️ Função", value: `**${cargo}**`, inline: true },
-        { name: "📜 Histórico RP", value: `**${crime}**`, inline: false },
-        { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
+        { name: "🎖️ Cargo", value: `**${cargo}**`, inline: true },
+        { name: "📜 Descrição RP / Crime", value: `**${crime}**`, inline: false },
+        { name: "📌 Jogador", value: `<@${interaction.user.id}>`, inline: false }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -236,18 +221,18 @@ Clique abaixo para entrar na família.`
     );
 
     await requestChannel.send({
-      content: "📁 Novo recrutamento recebido",
+      content: "📁 Novo prontuário recebido",
       embeds: [prontuario]
     });
 
     await approvalChannel.send({
-      content: "🚨 Recrutamento aguardando decisão da liderança",
+      content: "🚨 Pedido aguardando aprovação",
       embeds: [prontuario],
       components: [row]
     });
 
     return interaction.reply({
-      content: "📨 Seu recrutamento foi enviado para análise da família!",
+      content: "📨 Seu pedido foi enviado para análise!",
       ephemeral: true
     });
   }

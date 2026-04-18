@@ -60,34 +60,12 @@ client.once("ready", () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // 🟣 PAINEL FACÇÃO
+  // 🟣 PAINEL
   if (interaction.isChatInputCommand() && interaction.commandName === "painelset") {
 
     const embed = new EmbedBuilder()
       .setTitle("🇵🇱 FAMÍLIA POLÔNIA RP")
-      .setDescription(
-`No submundo ninguém sobrevive sozinho. Aqui, lealdade vale mais que sangue.
-
-A Família Polônia não é apenas uma facção — é uma organização silenciosa que controla ruas, negócios e informações sem chamar atenção.
-
-Respeito se conquista. Traição se paga.
-Cada membro tem seu papel, cada decisão tem consequência.
-
-Aqui não existe segunda chance para erros.
-Ou você faz parte da família… ou vira história.
-
-━━━━━━━━━━━━━━
-⚖️ REGRAS:
-• Lealdade acima de tudo  
-• Sigilo total das operações  
-• Respeito à hierarquia  
-• Nenhuma ação sem ordem superior  
-
-💀 “Quem entra, não sai igual. Quem trai, não sai vivo.”
-━━━━━━━━━━━━━━
-
-Clique abaixo para entrar na família.`
-      )
+      .setDescription("🇵🇱 Lealdade, respeito e poder — a Família Polônia domina o submundo.")
       .setColor("#0a0a0a");
 
     const row = new ActionRowBuilder().addComponents(
@@ -104,9 +82,7 @@ Clique abaixo para entrar na família.`
     });
   }
 
-  // =========================
-  // 🧾 FORMULÁRIO
-  // =========================
+  // 🧾 FORM
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
@@ -133,7 +109,7 @@ Clique abaixo para entrar na família.`
 
     const crime = new TextInputBuilder()
       .setCustomId("crime")
-      .setLabel("Histórico / Descrição RP")
+      .setLabel("Histórico RP")
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
@@ -147,9 +123,7 @@ Clique abaixo para entrar na família.`
     return interaction.showModal(modal);
   }
 
-  // =========================
   // 🟢 APROVAR / ❌ RECUSAR
-  // =========================
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
@@ -159,7 +133,7 @@ Clique abaixo para entrar na família.`
 
     if (!member.roles.cache.has(LEADER_ROLE_ID)) {
       return interaction.reply({
-        content: "❌ Apenas líderes podem aprovar pedidos.",
+        content: "❌ Apenas líderes podem aprovar.",
         ephemeral: true
       });
     }
@@ -168,47 +142,39 @@ Clique abaixo para entrar na família.`
 
     const guildMember = await interaction.guild.members.fetch(userId);
 
-    // ❌ RECUSAR
     if (action === "recusar") {
       return interaction.reply({
         content: `❌ Pedido recusado para <@${userId}>`
       });
     }
 
-    // =========================
-    // ✅ APROVAR (NOME + ID CORRETO)
-    // =========================
     if (action === "aprovar") {
 
       await guildMember.roles.add(ROLE_SET_ID);
 
-      // 📌 AGORA USA O NOME REAL DO FORMULÁRIO
-      const nomeRP = interaction.message.embeds[0]?.fields?.find(f => f.name === "👤 Nome")?.value?.replace(/\*\*/g, "") || "Jogador";
+      // 🔥 PEGA DADOS DO PRONTUÁRIO
+      const nomeRP = interaction.message.embeds[0].fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
+      const idRP = interaction.message.embeds[0].fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
 
-      const idRP = interaction.message.embeds[0]?.fields?.find(f => f.name === "🆔 ID")?.value?.replace(/\*\*/g, "") || userId;
-
-      // ✏️ FORMATO FINAL CORRETO
       const newNick = `${nomeRP} | ${idRP}`;
 
       try {
         await guildMember.setNickname(newNick);
       } catch (err) {
-        console.log("❌ Erro ao alterar apelido:", err.message);
+        console.log("Erro ao renomear:", err.message);
       }
 
       return interaction.reply({
         content:
-          `✅ **MEMBRO APROVADO NA FAMÍLIA POLÔNIA**\n\n` +
-          `👤 Nome: **${nomeRP}**\n` +
-          `🆔 ID: **${idRP}**\n` +
-          `✏️ Apelido atualizado: **${newNick}**`
+          `✅ **APROVADO**\n\n` +
+          `👤 ${nomeRP}\n` +
+          `🆔 ${idRP}\n` +
+          `✏️ ${newNick}`
       });
     }
   }
 
-  // =========================
   // 📩 PRONTUÁRIO
-  // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -219,15 +185,14 @@ Clique abaixo para entrar na família.`
     const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
     const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
-    const prontuario = new EmbedBuilder()
-      .setTitle("📁 PRONTUÁRIO - FAMÍLIA POLÔNIA RP")
+    const embed = new EmbedBuilder()
+      .setTitle("📁 PRONTUÁRIO")
       .setColor("#1a1a1a")
       .addFields(
         { name: "👤 Nome", value: `**${nome}**`, inline: true },
         { name: "🆔 ID", value: `**${id}**`, inline: true },
         { name: "🎖️ Função", value: `**${cargo}**`, inline: true },
-        { name: "📜 Histórico RP", value: `**${crime}**`, inline: false },
-        { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
+        { name: "📜 Histórico", value: `**${crime}**`, inline: false }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -243,18 +208,18 @@ Clique abaixo para entrar na família.`
     );
 
     await requestChannel.send({
-      content: "📁 Novo recrutamento recebido",
-      embeds: [prontuario]
+      content: "📁 Novo prontuário recebido",
+      embeds: [embed]
     });
 
     await approvalChannel.send({
-      content: "🚨 Recrutamento aguardando decisão da liderança",
-      embeds: [prontuario],
+      content: "🚨 Aguardando aprovação",
+      embeds: [embed],
       components: [row]
     });
 
     return interaction.reply({
-      content: "📨 Seu recrutamento foi enviado para análise!",
+      content: "📨 Pedido enviado!",
       ephemeral: true
     });
   }

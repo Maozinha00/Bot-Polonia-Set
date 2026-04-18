@@ -23,8 +23,8 @@ const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495026255756787722";
-const APPROVAL_CHANNEL_ID = "1495017575757910026";
+const REQUEST_CHANNEL_ID = "1495026255756787722"; // prontuário (só após aprovação)
+const APPROVAL_CHANNEL_ID = "1495017575757910026"; // aprovação
 
 // 🤖 BOT
 const client = new Client({
@@ -82,7 +82,9 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // 🧾 FORM
+  // =========================
+  // 🧾 FORMULÁRIO
+  // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
@@ -101,12 +103,6 @@ client.on("interactionCreate", async (interaction) => {
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
-    const cargo = new TextInputBuilder()
-      .setCustomId("cargo")
-      .setLabel("Função desejada")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
     const crime = new TextInputBuilder()
       .setCustomId("crime")
       .setLabel("Histórico RP")
@@ -116,14 +112,61 @@ client.on("interactionCreate", async (interaction) => {
     modal.addComponents(
       new ActionRowBuilder().addComponents(nome),
       new ActionRowBuilder().addComponents(id),
-      new ActionRowBuilder().addComponents(cargo),
       new ActionRowBuilder().addComponents(crime)
     );
 
     return interaction.showModal(modal);
   }
 
+  // =========================
+  // 📩 ENVIO PARA APROVAÇÃO (SEM PRONTUÁRIO)
+  // =========================
+  if (interaction.isModalSubmit() && interaction.customId === "form_set") {
+
+    const nome = interaction.fields.getTextInputValue("nome");
+    const id = interaction.fields.getTextInputValue("id");
+    const crime = interaction.fields.getTextInputValue("crime");
+
+    const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 PEDIDO DE RECRUTAMENTO")
+      .setColor("#ffaa00")
+      .addFields(
+        { name: "👤 Nome", value: `**${nome}**`, inline: true },
+        { name: "🆔 ID", value: `**${id}**`, inline: true },
+        { name: "🎖️ Função", value: `**Membro**`, inline: true },
+        { name: "📜 Histórico", value: `**${crime}**`, inline: false },
+        { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
+      );
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`aprovar_${interaction.user.id}`)
+        .setLabel("Aprovar")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(`recusar_${interaction.user.id}`)
+        .setLabel("Recusar")
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    await approvalChannel.send({
+      content: "🚨 Aguardando aprovação",
+      embeds: [embed],
+      components: [row]
+    });
+
+    return interaction.reply({
+      content: "📨 Pedido enviado para análise!",
+      ephemeral: true
+    });
+  }
+
+  // =========================
   // 🟢 APROVAR / ❌ RECUSAR
+  // =========================
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
@@ -139,30 +182,52 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const [action, userId] = interaction.customId.split("_");
-
     const guildMember = await interaction.guild.members.fetch(userId);
 
+    // ❌ RECUSAR
     if (action === "recusar") {
       return interaction.reply({
         content: `❌ Pedido recusado para <@${userId}>`
       });
     }
 
+    // ✅ APROVAR
     if (action === "aprovar") {
 
       await guildMember.roles.add(ROLE_SET_ID);
 
-      // 🔥 PEGA DADOS DO PRONTUÁRIO
-      const nomeRP = interaction.message.embeds[0].fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
-      const idRP = interaction.message.embeds[0].fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
+      const embed = interaction.message.embeds[0];
+
+      const nomeRP = embed.fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
+      const idRP = embed.fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
+      const crime = embed.fields.find(f => f.name === "📜 Histórico").value.replace(/\*\*/g, "");
 
       const newNick = `${nomeRP} | ${idRP}`;
 
       try {
         await guildMember.setNickname(newNick);
       } catch (err) {
-        console.log("Erro ao renomear:", err.message);
+        console.log("Erro nickname:", err.message);
       }
+
+      // 📁 PRONTUÁRIO (AGORA SIM)
+      const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+
+      const prontuario = new EmbedBuilder()
+        .setTitle("📁 PRONTUÁRIO APROVADO")
+        .setColor("#00ff88")
+        .addFields(
+          { name: "👤 Nome", value: `**${nomeRP}**`, inline: true },
+          { name: "🆔 ID", value: `**${idRP}**`, inline: true },
+          { name: "🎖️ Função", value: `**Membro**`, inline: true },
+          { name: "📜 Histórico", value: `**${crime}**`, inline: false },
+          { name: "✅ Aprovado por", value: `<@${interaction.user.id}>`, inline: false }
+        );
+
+      await requestChannel.send({
+        content: "📁 Prontuário aprovado",
+        embeds: [prontuario]
+      });
 
       return interaction.reply({
         content:
@@ -172,56 +237,6 @@ client.on("interactionCreate", async (interaction) => {
           `✏️ ${newNick}`
       });
     }
-  }
-
-  // 📩 PRONTUÁRIO
-  if (interaction.isModalSubmit() && interaction.customId === "form_set") {
-
-    const nome = interaction.fields.getTextInputValue("nome");
-    const id = interaction.fields.getTextInputValue("id");
-    const cargo = interaction.fields.getTextInputValue("cargo");
-    const crime = interaction.fields.getTextInputValue("crime");
-
-    const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
-    const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
-
-    const embed = new EmbedBuilder()
-      .setTitle("📁 PRONTUÁRIO")
-      .setColor("#1a1a1a")
-      .addFields(
-        { name: "👤 Nome", value: `**${nome}**`, inline: true },
-        { name: "🆔 ID", value: `**${id}**`, inline: true },
-        { name: "🎖️ Função", value: `**${cargo}**`, inline: true },
-        { name: "📜 Histórico", value: `**${crime}**`, inline: false }
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`aprovar_${interaction.user.id}`)
-        .setLabel("Aprovar")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId(`recusar_${interaction.user.id}`)
-        .setLabel("Recusar")
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await requestChannel.send({
-      content: "📁 Novo prontuário recebido",
-      embeds: [embed]
-    });
-
-    await approvalChannel.send({
-      content: "🚨 Aguardando aprovação",
-      embeds: [embed],
-      components: [row]
-    });
-
-    return interaction.reply({
-      content: "📨 Pedido enviado!",
-      ephemeral: true
-    });
   }
 });
 

@@ -22,9 +22,9 @@ const GUILD_ID = process.env.GUILD_ID;
 const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
-// 📌 CANAIS FIXOS
-const REQUEST_CHANNEL_ID = "1495017395062964304";
-const APPROVAL_CHANNEL_ID = "1495017575757910026";
+// 📌 CANAIS
+const REQUEST_CHANNEL_ID = "1495026255756787722"; // 📁 PRONTUÁRIO
+const APPROVAL_CHANNEL_ID = "1495017575757910026"; // 📤 APROVAÇÃO
 
 // 🤖 BOT
 const client = new Client({
@@ -39,7 +39,7 @@ const commands = [
     .toJSON()
 ];
 
-// 🚀 REGISTRO COMANDO
+// 🚀 REGISTRO
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 async function registerCommands() {
@@ -60,7 +60,7 @@ client.once("ready", () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // 🟣 PAINEL SET
+  // 🟣 PAINEL
   if (interaction.isChatInputCommand() && interaction.commandName === "painelset") {
 
     const embed = new EmbedBuilder()
@@ -152,9 +152,7 @@ client.on("interactionCreate", async (interaction) => {
 
       const guildMember = await interaction.guild.members.fetch(userId);
 
-      // =========================
       // ✅ APROVAR
-      // =========================
       if (action === "aprovar") {
 
         await guildMember.roles.add(ROLE_SET_ID);
@@ -169,15 +167,12 @@ client.on("interactionCreate", async (interaction) => {
         }
 
         return interaction.reply({
-          content: `✅ Pedido aprovado!\n🎖️ Cargo: **${cargo}**\n✏️ Nome atualizado para **${newName}**`
+          content: `✅ Pedido aprovado!\n🎖️ Cargo: **${cargo}**\n✏️ Nome atualizado: **${newName}**`
         });
       }
 
-      // =========================
       // ❌ RECUSAR
-      // =========================
       if (action === "recusar") {
-
         return interaction.reply({
           content: `❌ Pedido recusado para <@${userId}>`
         });
@@ -186,7 +181,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   // =========================
-  // 📩 MODAL SUBMIT (PRONTUÁRIO)
+  // 📩 PRONTUÁRIO
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -207,8 +202,7 @@ client.on("interactionCreate", async (interaction) => {
         { name: "🎖️ Cargo", value: `**${cargo}**`, inline: true },
         { name: "📜 Descrição RP / Crime", value: `**${crime}**`, inline: false },
         { name: "📌 Jogador", value: `<@${interaction.user.id}>`, inline: false }
-      )
-      .setFooter({ text: `Prontuário ID: ${id}` });
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -222,13 +216,15 @@ client.on("interactionCreate", async (interaction) => {
         .setStyle(ButtonStyle.Danger)
     );
 
+    // 📁 NOVO PRONTUÁRIO (CANAL CORRETO)
     await requestChannel.send({
-      content: `📁 Novo prontuário recebido`,
+      content: "📁 Novo prontuário recebido",
       embeds: [prontuario]
     });
 
+    // 📤 APROVAÇÃO
     await approvalChannel.send({
-      content: `🚨 Pedido aguardando aprovação`,
+      content: "🚨 Pedido aguardando aprovação",
       embeds: [prontuario],
       components: [row]
     });

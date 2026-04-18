@@ -23,7 +23,7 @@ const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 const APPROVAL_CHANNEL_ID = process.env.APPROVAL_CHANNEL_ID;
 
-// 🤖 BOT (CORRIGIDO - sem intents problemáticos)
+// 🤖 BOT
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -36,7 +36,7 @@ const commands = [
     .toJSON()
 ];
 
-// 🚀 REGISTRO DE COMANDO
+// 🚀 REGISTRO
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 async function registerCommands() {
@@ -46,7 +46,7 @@ async function registerCommands() {
   );
 }
 
-// 🎯 BOT ONLINE
+// 🎯 ONLINE
 client.once("ready", () => {
   console.log(`🤖 Online como ${client.user.tag}`);
   registerCommands();
@@ -55,22 +55,19 @@ client.once("ready", () => {
 // 📌 INTERAÇÕES
 client.on("interactionCreate", async (interaction) => {
 
-  // =========================
-  // 🟣 COMANDO /painelset
-  // =========================
+  // 🟣 PAINEL
   if (interaction.isChatInputCommand() && interaction.commandName === "painelset") {
 
     const embed = new EmbedBuilder()
       .setTitle("🇵🇱 PAINEL DE SET - POLÔNIA RP")
       .setDescription(
         "```📌 Sistema oficial de solicitação de set```\n\n" +
-        "• Clique no botão abaixo para solicitar seu set\n" +
-        "• Informe Nome RP, ID e Cargo\n" +
+        "• Clique no botão para solicitar seu set\n" +
+        "• Informe Nome RP, ID, Cargo e descrição\n" +
         "• Aguarde aprovação da liderança\n\n" +
         "⚠️ Pedidos falsos serão recusados."
       )
-      .setColor("#ff0000")
-      .setFooter({ text: "Polônia RP • Sistema de Organização" });
+      .setColor("#ff0000");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -80,18 +77,12 @@ client.on("interactionCreate", async (interaction) => {
         .setStyle(ButtonStyle.Success)
     );
 
-    return interaction.reply({
-      embeds: [embed],
-      components: [row]
-    });
+    return interaction.reply({ embeds: [embed], components: [row] });
   }
 
-  // =========================
   // 🧾 BOTÕES
-  // =========================
   if (interaction.isButton()) {
 
-    // 🔵 ABRIR FORMULÁRIO
     if (interaction.customId === "abrir_set") {
 
       const modal = new ModalBuilder()
@@ -116,22 +107,26 @@ client.on("interactionCreate", async (interaction) => {
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
 
+      // 🔥 NOVO CAMPO: DESCRIÇÃO DE CRIME
+      const crime = new TextInputBuilder()
+        .setCustomId("crime")
+        .setLabel("Descrição do Crime / Motivo RP")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
       modal.addComponents(
         new ActionRowBuilder().addComponents(nome),
         new ActionRowBuilder().addComponents(id),
-        new ActionRowBuilder().addComponents(cargo)
+        new ActionRowBuilder().addComponents(cargo),
+        new ActionRowBuilder().addComponents(crime)
       );
 
       return interaction.showModal(modal);
     }
 
-    // =========================
-    // 🟢 APROVAR / ❌ RECUSAR
-    // =========================
-
+    // 🟢 APROVAÇÃO / RECUSA
     if (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_")) {
 
-      // 👮 validação de líder
       const member = interaction.member;
 
       if (!member.roles.cache.has(LEADER_ROLE_ID)) {
@@ -165,14 +160,13 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // =========================
   // 📩 MODAL SUBMIT
-  // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
     const id = interaction.fields.getTextInputValue("id");
     const cargo = interaction.fields.getTextInputValue("cargo");
+    const crime = interaction.fields.getTextInputValue("crime");
 
     const channel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
@@ -183,9 +177,9 @@ client.on("interactionCreate", async (interaction) => {
         { name: "👤 Nome RP", value: nome, inline: true },
         { name: "🆔 ID", value: id, inline: true },
         { name: "🎖️ Cargo", value: cargo, inline: true },
+        { name: "📜 Descrição do Crime", value: crime, inline: false },
         { name: "📌 Usuário", value: `<@${interaction.user.id}>` }
-      )
-      .setFooter({ text: "Aguardando análise da liderança" });
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

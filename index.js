@@ -79,9 +79,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // =========================
-  // 🧾 ABRIR FORMULÁRIO
-  // =========================
+  // 🧾 FORMULÁRIO
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
@@ -115,9 +113,7 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.showModal(modal);
   }
 
-  // =========================
   // 📩 ENVIO PARA APROVAÇÃO
-  // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -132,7 +128,6 @@ client.on("interactionCreate", async (interaction) => {
       .addFields(
         { name: "👤 Nome", value: `**${nome}**`, inline: true },
         { name: "🆔 ID", value: `**${id}**`, inline: true },
-        { name: "🎖️ Função", value: `**Membro**`, inline: true },
         { name: "📜 Histórico", value: `**${crime}**`, inline: false },
         { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
       );
@@ -161,9 +156,7 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // =========================
   // 🟢 APROVAR / ❌ RECUSAR
-  // =========================
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
@@ -203,26 +196,24 @@ client.on("interactionCreate", async (interaction) => {
 
       try {
         await guildMember.setNickname(newNick);
-      } catch (err) {
-        console.log("Erro ao mudar nickname:", err.message);
-      }
+      } catch {}
 
       const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
 
-      const prontuario = new EmbedBuilder()
-        .setTitle("📁 PRONTUÁRIO APROVADO")
-        .setColor("#00ff88")
-        .addFields(
-          { name: "👤 Nome", value: `**${nomeRP}**`, inline: true },
-          { name: "🆔 ID", value: `**${idRP}**`, inline: true },
-          { name: "🎖️ Função", value: `**Membro**`, inline: true },
-          { name: "📜 Histórico", value: `**${crime}**`, inline: false },
-          { name: "👮 Aprovado por", value: `<@${interaction.user.id}>`, inline: false }
-        );
+      // 📁 PRONTUÁRIO ESTILO FOTO
+      const prontuarioMsg =
+`📁 **NOVO PRONTUÁRIO RECEBIDO**
+
+━━━━━━━━━━━━━━
+🆔 **ID:** ${idRP}
+👤 **Nome:** ${nomeRP}
+🏢 **Unidade:** Polônia
+🎖️ **Cargo:** Membro
+👮 **Responsável:** <@${interaction.user.id}>
+━━━━━━━━━━━━━━`;
 
       await requestChannel.send({
-        content: "📁 Prontuário criado",
-        embeds: [prontuario]
+        content: prontuarioMsg
       });
 
       return interaction.reply({

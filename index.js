@@ -1,107 +1,241 @@
-if (
-  interaction.isButton() &&
-  (interaction.customId.startsWith("aprovar_") ||
-   interaction.customId.startsWith("recusar_") ||
-   interaction.customId.startsWith("remover_"))
-) {
+import "dotenv/config";
+import {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  REST,
+  Routes,
+  SlashCommandBuilder
+} from "discord.js";
 
-  const member = interaction.member;
+// 🔐 CONFIG
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
 
-  if (!member.roles.cache.has(LEADER_ROLE_ID)) {
-    return interaction.reply({
-      content: "❌ Apenas líderes podem usar isso.",
-      ephemeral: true
-    });
+const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
+const ROLE_SET_ID = process.env.ROLE_SET_ID;
+
+// 📌 CANAIS
+const REQUEST_CHANNEL_ID = "1495026255756787722"; // prontuário
+const APPROVAL_CHANNEL_ID = "1495017575757910026"; // aprovação
+
+// 🤖 BOT
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+// 📌 COMANDO
+const commands = [
+  new SlashCommandBuilder()
+    .setName("painelset")
+    .setDescription("Abrir painel Polônia RP")
+    .toJSON()
+];
+
+// 🚀 REGISTRO
+const rest = new REST({ version: "10" }).setToken(TOKEN);
+
+client.once("ready", async () => {
+  console.log(`🤖 Online: ${client.user.tag}`);
+
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: commands }
+  );
+});
+
+// =========================
+// 📌 INTERAÇÕES
+// =========================
+client.on("interactionCreate", async (interaction) => {
+
+  // 🟣 PAINEL
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "painelset") {
+
+      const embed = new EmbedBuilder()
+        .setTitle("🇵🇱 FAMÍLIA POLÔNIA")
+        .setDescription("🇵🇱 Lealdade, respeito e poder — a Família Polônia domina o submundo.")
+        .setColor("#000000");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("abrir_set")
+          .setLabel("Entrar na Família")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      return interaction.reply({
+        embeds: [embed],
+        components: [row]
+      });
+    }
   }
 
-  const [action, userId] = interaction.customId.split("_");
-  const guildMember = await interaction.guild.members.fetch(userId);
-
-  const embedMsg = interaction.message.embeds[0];
-
-  const nomeRP = embedMsg.fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
-  const idRP = embedMsg.fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
-  const crime = embedMsg.fields.find(f => f.name === "📜 Histórico").value.replace(/\*\*/g, "");
-
-  const prontuarioID = Math.floor(Math.random() * 99999);
-
   // =========================
-  // ❌ RECUSAR
+  // 🧾 ABRIR FORMULÁRIO
   // =========================
-  if (action === "recusar") {
+  if (interaction.isButton() && interaction.customId === "abrir_set") {
 
-    const newEmbed = EmbedBuilder.from(embedMsg)
-      .setColor("#ff0000")
-      .setFooter({ text: `❌ Recusado por ${interaction.user.tag}` });
+    const modal = new ModalBuilder()
+      .setCustomId("form_set")
+      .setTitle("Recrutamento Polônia");
 
-    await interaction.update({ embeds: [newEmbed], components: [] });
+    const nome = new TextInputBuilder()
+      .setCustomId("nome")
+      .setLabel("Nome RP")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
 
-    return;
+    const id = new TextInputBuilder()
+      .setCustomId("id")
+      .setLabel("ID no servidor")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const crime = new TextInputBuilder()
+      .setCustomId("crime")
+      .setLabel("Histórico RP")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(nome),
+      new ActionRowBuilder().addComponents(id),
+      new ActionRowBuilder().addComponents(crime)
+    );
+
+    return interaction.showModal(modal);
   }
 
   // =========================
-  // 🟢 APROVAR
+  // 📩 ENVIO PARA APROVAÇÃO
   // =========================
-  if (action === "aprovar") {
+  if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
-    await guildMember.roles.add(ROLE_SET_ID);
+    const nome = interaction.fields.getTextInputValue("nome");
+    const id = interaction.fields.getTextInputValue("id");
+    const crime = interaction.fields.getTextInputValue("crime");
 
-    const newNick = `${nomeRP} | ${idRP}`;
+    const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
-    try {
-      await guildMember.setNickname(newNick);
-    } catch {}
-
-    const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
-
-    const prontuario = new EmbedBuilder()
-      .setTitle(`📁 PRONTUÁRIO #${prontuarioID}`)
-      .setColor("#00ff88")
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 PEDIDO DE RECRUTAMENTO")
+      .setColor("#ffaa00")
       .addFields(
-        { name: "👤 Nome", value: `**${nomeRP}**`, inline: true },
-        { name: "🆔 ID", value: `**${idRP}**`, inline: true },
+        { name: "👤 Nome", value: `**${nome}**`, inline: true },
+        { name: "🆔 ID", value: `**${id}**`, inline: true },
         { name: "🎖️ Função", value: `**Membro**`, inline: true },
         { name: "📜 Histórico", value: `**${crime}**`, inline: false },
-        { name: "👮 Aprovado por", value: `<@${interaction.user.id}>`, inline: false }
-      )
-      .setFooter({ text: "Sistema Premium • Polônia RP" });
+        { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`remover_${userId}`)
-        .setLabel("Remover Set")
+        .setCustomId(`aprovar_${interaction.user.id}`)
+        .setLabel("Aprovar")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(`recusar_${interaction.user.id}`)
+        .setLabel("Recusar")
         .setStyle(ButtonStyle.Danger)
     );
 
-    await requestChannel.send({
-      content: "📁 Prontuário criado",
-      embeds: [prontuario],
+    await approvalChannel.send({
+      content: "🚨 Aguardando aprovação",
+      embeds: [embed],
       components: [row]
     });
 
-    const updated = EmbedBuilder.from(embedMsg)
-      .setColor("#00ff88")
-      .setFooter({ text: `✅ Aprovado por ${interaction.user.tag}` });
-
-    await interaction.update({ embeds: [updated], components: [] });
-
-    return;
-  }
-
-  // =========================
-  // 🔴 REMOVER SET
-  // =========================
-  if (action === "remover") {
-
-    await guildMember.roles.remove(ROLE_SET_ID);
-
-    try {
-      await guildMember.setNickname(null);
-    } catch {}
-
     return interaction.reply({
-      content: `🔴 Set removido de <@${userId}>`,
+      content: "📨 Pedido enviado para análise!",
       ephemeral: true
     });
   }
-}
+
+  // =========================
+  // 🟢 APROVAR / ❌ RECUSAR
+  // =========================
+  if (
+    interaction.isButton() &&
+    (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
+  ) {
+
+    const member = interaction.member;
+
+    if (!member.roles.cache.has(LEADER_ROLE_ID)) {
+      return interaction.reply({
+        content: "❌ Apenas líderes podem aprovar.",
+        ephemeral: true
+      });
+    }
+
+    const [action, userId] = interaction.customId.split("_");
+    const guildMember = await interaction.guild.members.fetch(userId);
+
+    const embed = interaction.message.embeds[0];
+
+    const nomeRP = embed.fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
+    const idRP = embed.fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
+    const crime = embed.fields.find(f => f.name === "📜 Histórico").value.replace(/\*\*/g, "");
+
+    // ❌ RECUSAR
+    if (action === "recusar") {
+      return interaction.reply({
+        content: `❌ Pedido recusado para <@${userId}>`
+      });
+    }
+
+    // ✅ APROVAR
+    if (action === "aprovar") {
+
+      await guildMember.roles.add(ROLE_SET_ID);
+
+      const newNick = `${nomeRP} | ${idRP}`;
+
+      try {
+        await guildMember.setNickname(newNick);
+      } catch (err) {
+        console.log("Erro ao mudar nickname:", err.message);
+      }
+
+      const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+
+      const prontuario = new EmbedBuilder()
+        .setTitle("📁 PRONTUÁRIO APROVADO")
+        .setColor("#00ff88")
+        .addFields(
+          { name: "👤 Nome", value: `**${nomeRP}**`, inline: true },
+          { name: "🆔 ID", value: `**${idRP}**`, inline: true },
+          { name: "🎖️ Função", value: `**Membro**`, inline: true },
+          { name: "📜 Histórico", value: `**${crime}**`, inline: false },
+          { name: "👮 Aprovado por", value: `<@${interaction.user.id}>`, inline: false }
+        );
+
+      await requestChannel.send({
+        content: "📁 Prontuário criado",
+        embeds: [prontuario]
+      });
+
+      return interaction.reply({
+        content:
+          `✅ APROVADO\n\n` +
+          `👤 ${nomeRP}\n` +
+          `🆔 ${idRP}\n` +
+          `✏️ ${newNick}`
+      });
+    }
+  }
+
+});
+
+// 🔑 LOGIN
+client.login(TOKEN);

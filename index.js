@@ -26,8 +26,8 @@ const ROLE_SET_ID = process.env.ROLE_SET_ID;
 const EXTRA_ROLE_ID = "1495178024759332915";
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495178025602515177";
-const APPROVAL_CHANNEL_ID = "1495790507182522450";
+const REQUEST_CHANNEL_ID = "1495178025602515177"; // prontuário
+const APPROVAL_CHANNEL_ID = "1495790507182522450"; // análise
 
 // 🤖 BOT
 const client = new Client({
@@ -51,12 +51,15 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
 client.once("ready", async () => {
   console.log(`🤖 Online: ${client.user.tag}`);
 
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
-
-  console.log("✅ Sistema online");
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log("✅ Bot online e comandos registrados!");
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // =========================
@@ -101,7 +104,7 @@ Entre para a família e construa seu legado no RP.
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("Recrutamento");
+      .setTitle("Recrutamento Polônia");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
@@ -130,7 +133,7 @@ Entre para a família e construa seu legado no RP.
     return interaction.showModal(modal);
   }
 
-  // ===== ENVIAR PARA APROVAÇÃO =====
+  // ===== ENVIO PARA ANÁLISE =====
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -154,6 +157,7 @@ Entre para a família e construa seu legado no RP.
         .setCustomId(`aprovar_${interaction.user.id}`)
         .setLabel("Aprovar")
         .setStyle(ButtonStyle.Success),
+
       new ButtonBuilder()
         .setCustomId(`recusar_${interaction.user.id}`)
         .setLabel("Recusar")
@@ -187,23 +191,34 @@ Entre para a família e construa seu legado no RP.
       const member = await interaction.guild.members.fetch(userId);
 
       const embed = interaction.message.embeds[0];
-
       const nome = embed.fields[0].value;
       const id = embed.fields[1].value;
 
+      // 🧹 APAGA PAINEL SEMPRE
+      try {
+        await interaction.message.delete();
+      } catch (err) {
+        console.log("Erro ao apagar painel:", err.message);
+      }
+
       // ❌ RECUSAR
       if (action === "recusar") {
-        await member.send("❌ Você foi recusado.").catch(() => {});
-        return interaction.editReply("Recusado.");
+
+        await member.send("❌ Seu recrutamento foi recusado.").catch(() => {});
+
+        return interaction.editReply(
+`❌ REPROVADO
+
+👤 ${nome}
+🆔 ${id}`
+        );
       }
 
       // ✅ APROVAR
       if (action === "aprovar") {
 
-        // 🎖️ CARGOS
         await member.roles.add([ROLE_SET_ID, EXTRA_ROLE_ID]).catch(() => {});
 
-        // 🏷️ NICK REAL
         let nick = `${nome} | ${id}`;
         if (nick.length > 32) nick = nick.slice(0, 32);
 
@@ -222,26 +237,25 @@ Entre para a família e construa seu legado no RP.
 👤 Nome: ${nome}
 🆔 ID: ${id}
 🏷️ Nick: ${nick}
-🎖️ Cargos: Set + Membro
+🎖️ Cargos aplicados
 👮 Aprovado por: <@${interaction.user.id}>
 ━━━━━━━━━━━━━━━━━━━`
         );
 
-        await member.send(`✅ Aprovado!\nNick: ${nick}`).catch(() => {});
+        await member.send(`✅ Você foi aprovado!\nNick: ${nick}`).catch(() => {});
 
         return interaction.editReply(
 `✅ APROVADO
 
 👤 ${nome}
 🆔 ${id}
-🏷️ ${nick}
-🎖️ Cargos aplicados`
+🏷️ ${nick}`
         );
       }
 
     } catch (err) {
       console.error(err);
-      return interaction.editReply("❌ Erro.");
+      return interaction.editReply("❌ Erro ao processar.");
     }
   }
 });
@@ -249,6 +263,6 @@ Entre para a família e construa seu legado no RP.
 // 🔑 LOGIN
 client.login(TOKEN);
 
-// 💥 SEGURANÇA
+// 💥 ANTI-CRASH
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

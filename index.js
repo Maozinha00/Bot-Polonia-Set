@@ -79,14 +79,12 @@ Entre para a família e construa seu legado no RP.
 
 📌 Clique no botão abaixo para iniciar seu cadastro.
 ━━━━━━━━━━━━━━━━━━━`
-        )
-        .setFooter({ text: "Sistema automático • Polônia RP" });
+        );
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("abrir_set")
           .setLabel("Entrar na Família")
-          .setEmoji("📋")
           .setStyle(ButtonStyle.Success)
       );
 
@@ -102,23 +100,23 @@ Entre para a família e construa seu legado no RP.
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("📋 Recrutamento Polônia");
+      .setTitle("Recrutamento");
 
     const nome = new TextInputBuilder()
       .setCustomId("nome")
-      .setLabel("Seu nome no RP")
+      .setLabel("Nome RP")
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
     const id = new TextInputBuilder()
       .setCustomId("id")
-      .setLabel("ID no servidor")
+      .setLabel("ID")
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
     const crime = new TextInputBuilder()
       .setCustomId("crime")
-      .setLabel("Histórico RP")
+      .setLabel("Histórico")
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
@@ -138,16 +136,15 @@ Entre para a família e construa seu legado no RP.
     const id = interaction.fields.getTextInputValue("id");
     const crime = interaction.fields.getTextInputValue("crime");
 
-    const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
+    const channel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
     const embed = new EmbedBuilder()
-      .setColor("#f59e0b")
-      .setTitle("🚨 NOVA SOLICITAÇÃO")
+      .setColor("#ffaa00")
+      .setTitle("Novo Recrutamento")
       .addFields(
-        { name: "👤 Nome", value: `\`${nome}\``, inline: true },
-        { name: "🆔 ID", value: `\`${id}\``, inline: true },
-        { name: "📜 Histórico", value: crime },
-        { name: "📌 Recruta", value: `<@${interaction.user.id}>` }
+        { name: "Nome", value: nome },
+        { name: "ID", value: id },
+        { name: "Histórico", value: crime }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -162,18 +159,15 @@ Entre para a família e construa seu legado no RP.
         .setStyle(ButtonStyle.Danger)
     );
 
-    await approvalChannel.send({
-      embeds: [embed],
-      components: [row]
-    });
+    await channel.send({ embeds: [embed], components: [row] });
 
     return interaction.reply({
-      content: "📨 Pedido enviado!",
+      content: "Pedido enviado!",
       ephemeral: true
     });
   }
 
-  // ===== APROVAR / RECUSAR =====
+  // ===== APROVAÇÃO =====
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
@@ -185,21 +179,19 @@ Entre para a família e construa seu legado no RP.
       const executor = await interaction.guild.members.fetch(interaction.user.id);
 
       if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-        return interaction.editReply("❌ Apenas líderes podem fazer isso.");
+        return interaction.editReply("Sem permissão.");
       }
 
       const [action, userId] = interaction.customId.split("_");
       const member = await interaction.guild.members.fetch(userId);
 
-      const embedMsg = interaction.message.embeds[0];
-
-      const nome = embedMsg.fields[0].value.replace(/`/g, "");
-      const id = embedMsg.fields[1].value.replace(/`/g, "");
+      const embed = interaction.message.embeds[0];
+      const nome = embed.fields[0].value;
+      const id = embed.fields[1].value;
 
       // ❌ RECUSAR
       if (action === "recusar") {
-        await member.send("❌ Você foi recusado.").catch(() => {});
-        return interaction.editReply(`❌ Recusado: <@${userId}>`);
+        return interaction.editReply("Recusado.");
       }
 
       // ✅ APROVAR
@@ -207,49 +199,33 @@ Entre para a família e construa seu legado no RP.
 
         await member.roles.add(ROLE_SET_ID).catch(() => {});
 
-        // 🔥 NICK AUTOMÁTICO
+        // 🔥 ALTERAÇÃO REAL DO APELIDO
         let nick = `${nome} | ${id}`;
-        if (nick.length > 32) nick = nick.substring(0, 32);
+
+        if (nick.length > 32) {
+          nick = nick.substring(0, 32);
+        }
 
         try {
           await member.setNickname(nick);
+          console.log("Nick alterado:", nick);
         } catch (err) {
           console.log("Erro ao mudar nick:", err.message);
         }
 
-        await member.send(`✅ Aprovado!\nSeu nick: ${nick}`).catch(() => {});
+        await member.send(`Você foi aprovado! Seu nick: ${nick}`).catch(() => {});
 
-        const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
-
-        await requestChannel.send(
-`📁 **PRONTUÁRIO POLÔNIA**
-━━━━━━━━━━━━━━━━━━━
-👤 Nome: ${nome}
-🆔 ID: ${id}
-🏷️ Nick: ${nick}
-👮 Aprovado por: <@${interaction.user.id}>
-━━━━━━━━━━━━━━━━━━━`
-        );
-
-        return interaction.editReply(
-`✅ APROVADO
-
-👤 ${nome}
-🆔 ${id}
-🏷️ ${nick}`
-        );
+        return interaction.editReply(`Aprovado e nick alterado para: ${nick}`);
       }
 
     } catch (err) {
       console.error(err);
-      return interaction.editReply("❌ Erro na aprovação.");
+      return interaction.editReply("Erro.");
     }
   }
 });
 
-// 🔑 LOGIN
 client.login(TOKEN);
 
-// 💥 ANTI-CRASH
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

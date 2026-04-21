@@ -201,10 +201,8 @@ Entre para a família e construa seu legado no RP.
         console.log("Erro ao apagar painel:", err.message);
       }
 
-      // ❌ RECUSAR
+      // ❌ RECUSAR (SEM PV)
       if (action === "recusar") {
-
-        await member.send("❌ Seu recrutamento foi recusado.").catch(() => {});
 
         return interaction.editReply(
 `❌ REPROVADO
@@ -241,8 +239,6 @@ Entre para a família e construa seu legado no RP.
 👮 Aprovado por: <@${interaction.user.id}>
 ━━━━━━━━━━━━━━━━━━━`
         );
-
-        await member.send(`✅ Você foi aprovado!\nNick: ${nick}`).catch(() => {});
 
         return interaction.editReply(
 `✅ APROVADO

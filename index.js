@@ -23,8 +23,8 @@ const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495026255756787722"; // prontuário
-const APPROVAL_CHANNEL_ID = "1495017575757910026"; // aprovação
+const REQUEST_CHANNEL_ID = "1495178025602515177"; // prontuário
+const APPROVAL_CHANNEL_ID = "1495790507182522450"; // aprovação
 
 // 🤖 BOT
 const client = new Client({

@@ -34,7 +34,7 @@ const client = new Client({
   ]
 });
 
-// 📌 COMANDO SLASH
+// 📌 COMANDO
 const commands = [
   new SlashCommandBuilder()
     .setName("painelset")
@@ -42,7 +42,7 @@ const commands = [
     .toJSON()
 ];
 
-// 🚀 REGISTRO DE COMANDO
+// 🚀 REGISTRO
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 client.once("ready", async () => {
@@ -53,10 +53,9 @@ client.once("ready", async () => {
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commands }
     );
-
-    console.log("✅ Slash command /painelset registrado com sucesso!");
+    console.log("✅ /painelset registrado!");
   } catch (err) {
-    console.error("❌ Erro ao registrar comando:", err);
+    console.error(err);
   }
 });
 
@@ -70,14 +69,24 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.commandName === "painelset") {
 
       const embed = new EmbedBuilder()
-        .setTitle("🇵🇱 FAMÍLIA POLÔNIA RP")
-        .setDescription("Sistema de recrutamento oficial da organização.")
-        .setColor("#000000");
+        .setColor("#0f172a")
+        .setTitle("🇵🇱 POLÔNIA ROLEPLAY")
+        .setDescription(
+`━━━━━━━━━━━━━━━━━━━
+🏴 **RECRUTAMENTO OFICIAL**
+
+Entre para a família e construa seu legado no RP.
+
+📌 Clique no botão abaixo para iniciar seu cadastro.
+━━━━━━━━━━━━━━━━━━━`
+        )
+        .setFooter({ text: "Sistema automático • Polônia RP" });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("abrir_set")
-          .setLabel("📋 Entrar na Família")
+          .setLabel("Entrar na Família")
+          .setEmoji("📋")
           .setStyle(ButtonStyle.Success)
       );
 
@@ -93,24 +102,27 @@ client.on("interactionCreate", async (interaction) => {
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("Recrutamento Polônia");
+      .setTitle("📋 Recrutamento Polônia");
 
     const nome = new TextInputBuilder()
       .setCustomId("nome")
-      .setLabel("Nome RP")
+      .setLabel("Seu nome no RP")
       .setStyle(TextInputStyle.Short)
+      .setPlaceholder("Ex: João Silva")
       .setRequired(true);
 
     const id = new TextInputBuilder()
       .setCustomId("id")
       .setLabel("ID no servidor")
       .setStyle(TextInputStyle.Short)
+      .setPlaceholder("Ex: 123")
       .setRequired(true);
 
     const crime = new TextInputBuilder()
       .setCustomId("crime")
-      .setLabel("Histórico RP")
+      .setLabel("Histórico / Experiência RP")
       .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder("Conte sua experiência...")
       .setRequired(true);
 
     modal.addComponents(
@@ -132,35 +144,38 @@ client.on("interactionCreate", async (interaction) => {
     const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
     const embed = new EmbedBuilder()
-      .setTitle("🚨 NOVO RECRUTAMENTO")
-      .setColor("#ffaa00")
+      .setColor("#f59e0b")
+      .setTitle("🚨 NOVA SOLICITAÇÃO")
+      .setDescription("Pedido aguardando análise da liderança")
       .addFields(
-        { name: "👤 Nome", value: nome, inline: true },
-        { name: "🆔 ID", value: id, inline: true },
-        { name: "📜 Histórico", value: crime, inline: false },
-        { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
-      );
+        { name: "👤 Nome", value: `\`${nome}\``, inline: true },
+        { name: "🆔 ID", value: `\`${id}\``, inline: true },
+        { name: "📜 Histórico", value: crime },
+        { name: "📌 Recruta", value: `<@${interaction.user.id}>` }
+      )
+      .setFooter({ text: "Sistema de Recrutamento" });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`aprovar_${interaction.user.id}`)
-        .setLabel("✅ Aprovar")
+        .setLabel("Aprovar")
+        .setEmoji("✅")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId(`recusar_${interaction.user.id}`)
-        .setLabel("❌ Recusar")
+        .setLabel("Recusar")
+        .setEmoji("❌")
         .setStyle(ButtonStyle.Danger)
     );
 
     await approvalChannel.send({
-      content: "🚨 Pedido aguardando análise",
       embeds: [embed],
       components: [row]
     });
 
     return interaction.reply({
-      content: "📨 Pedido enviado!",
+      content: "📨 Seu pedido foi enviado para análise!",
       ephemeral: true
     });
   }
@@ -173,7 +188,7 @@ client.on("interactionCreate", async (interaction) => {
 
     if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
       return interaction.reply({
-        content: "❌ Apenas líderes podem aprovar.",
+        content: "❌ Apenas líderes podem fazer isso.",
         ephemeral: true
       });
     }
@@ -181,15 +196,15 @@ client.on("interactionCreate", async (interaction) => {
     const [action, userId] = interaction.customId.split("_");
     const member = await interaction.guild.members.fetch(userId);
 
-    const embed = interaction.message.embeds[0];
+    const embedMsg = interaction.message.embeds[0];
 
-    const nome = embed.fields.find(f => f.name === "👤 Nome").value;
-    const id = embed.fields.find(f => f.name === "🆔 ID").value;
+    const nome = embedMsg.fields.find(f => f.name === "👤 Nome").value.replace(/`/g, "");
+    const id = embedMsg.fields.find(f => f.name === "🆔 ID").value.replace(/`/g, "");
 
     // ❌ RECUSAR
     if (action === "recusar") {
-      await member.send("❌ Seu pedido foi recusado.").catch(() => {});
-      return interaction.reply({ content: `❌ Recusado: <@${userId}>` });
+      await member.send("❌ Seu recrutamento foi recusado.").catch(() => {});
+      return interaction.reply({ content: `❌ Recrutamento recusado: <@${userId}>` });
     }
 
     // ✅ APROVAR
@@ -198,30 +213,29 @@ client.on("interactionCreate", async (interaction) => {
       await member.roles.add(ROLE_SET_ID);
 
       const nick = `${nome} | ${id}`;
-      try {
-        await member.setNickname(nick);
-      } catch {}
+      try { await member.setNickname(nick); } catch {}
 
-      await member.send("✅ Você foi aceito na Família Polônia!").catch(() => {});
+      await member.send("✅ Você foi aprovado na Polônia RP!").catch(() => {});
 
       const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
 
       await requestChannel.send(
 `📁 **PRONTUÁRIO POLÔNIA**
 
-━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 👤 Nome: ${nome}
 🆔 ID: ${id}
 👮 Aprovado por: <@${interaction.user.id}>
-━━━━━━━━━━━━━━`
+━━━━━━━━━━━━━━━━━━━`
       );
 
       return interaction.reply({
         content:
-          `✅ APROVADO\n` +
-          `👤 ${nome}\n` +
-          `🆔 ${id}\n` +
-          `✏️ Nick: ${nick}`
+`✅ **RECRUTAMENTO APROVADO**
+
+👤 Nome: ${nome}
+🆔 ID: ${id}
+🏷️ Nick: ${nick}`
       });
     }
   }

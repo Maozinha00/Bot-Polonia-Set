@@ -22,9 +22,12 @@ const GUILD_ID = process.env.GUILD_ID;
 const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
+// 🎖️ CARGO EXTRA
+const EXTRA_ROLE_ID = "1495178024759332915";
+
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495178025602515177"; // 📁 PRONTUÁRIOS
-const APPROVAL_CHANNEL_ID = "1495790507182522450"; // 📊 ANÁLISE
+const REQUEST_CHANNEL_ID = "1495178025602515177";
+const APPROVAL_CHANNEL_ID = "1495790507182522450";
 
 // 🤖 BOT
 const client = new Client({
@@ -52,6 +55,8 @@ client.once("ready", async () => {
     Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
     { body: commands }
   );
+
+  console.log("✅ Sistema online");
 });
 
 // =========================
@@ -59,7 +64,7 @@ client.once("ready", async () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // ===== COMANDO =====
+  // ===== PAINEL =====
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "painelset") {
 
@@ -68,20 +73,26 @@ client.on("interactionCreate", async (interaction) => {
         .setTitle("🇵🇱 POLÔNIA ROLEPLAY")
         .setDescription(
 `━━━━━━━━━━━━━━━━━━━
-🏴 RECRUTAMENTO OFICIAL
+🏴 **RECRUTAMENTO OFICIAL**
 
-Clique abaixo para entrar na família
+Entre para a família e construa seu legado no RP.
+
+📌 Clique no botão abaixo para iniciar seu cadastro.
 ━━━━━━━━━━━━━━━━━━━`
-        );
+        )
+        .setFooter({ text: "Sistema automático • Polônia RP" });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("abrir_set")
-          .setLabel("Entrar")
+          .setLabel("Entrar na Família")
           .setStyle(ButtonStyle.Success)
       );
 
-      return interaction.reply({ embeds: [embed], components: [row] });
+      return interaction.reply({
+        embeds: [embed],
+        components: [row]
+      });
     }
   }
 
@@ -98,25 +109,28 @@ Clique abaixo para entrar na família
           .setCustomId("nome")
           .setLabel("Nome RP")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("id")
-          .setLabel("ID")
+          .setLabel("ID no servidor")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("crime")
-          .setLabel("Histórico")
+          .setLabel("Histórico RP")
           .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
       )
     );
 
     return interaction.showModal(modal);
   }
 
-  // ===== ENVIO PARA APROVAÇÃO =====
+  // ===== ENVIAR PARA APROVAÇÃO =====
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -132,7 +146,7 @@ Clique abaixo para entrar na família
         { name: "👤 Nome", value: nome },
         { name: "🆔 ID", value: id },
         { name: "📜 Histórico", value: crime },
-        { name: "📌 Discord", value: `<@${interaction.user.id}>` }
+        { name: "📌 Recruta", value: `<@${interaction.user.id}>` }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -148,63 +162,86 @@ Clique abaixo para entrar na família
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    return interaction.reply({ content: "Pedido enviado!", ephemeral: true });
+    return interaction.reply({
+      content: "📨 Pedido enviado!",
+      ephemeral: true
+    });
   }
 
   // ===== APROVAÇÃO =====
-  if (interaction.isButton()) {
-
-    if (!interaction.customId.startsWith("aprovar_") && !interaction.customId.startsWith("recusar_")) return;
+  if (
+    interaction.isButton() &&
+    (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
+  ) {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const executor = await interaction.guild.members.fetch(interaction.user.id);
+    try {
+      const executor = await interaction.guild.members.fetch(interaction.user.id);
 
-    if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-      return interaction.editReply("❌ Sem permissão.");
-    }
+      if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
+        return interaction.editReply("❌ Sem permissão.");
+      }
 
-    const [action, userId] = interaction.customId.split("_");
-    const member = await interaction.guild.members.fetch(userId);
+      const [action, userId] = interaction.customId.split("_");
+      const member = await interaction.guild.members.fetch(userId);
 
-    const embed = interaction.message.embeds[0];
-    const nome = embed.fields[0].value;
-    const id = embed.fields[1].value;
+      const embed = interaction.message.embeds[0];
 
-    // ❌ RECUSAR
-    if (action === "recusar") {
-      await member.send("❌ Você foi recusado.").catch(() => {});
-      return interaction.editReply("Recusado.");
-    }
+      const nome = embed.fields[0].value;
+      const id = embed.fields[1].value;
 
-    // ✅ APROVAR
-    if (action === "aprovar") {
+      // ❌ RECUSAR
+      if (action === "recusar") {
+        await member.send("❌ Você foi recusado.").catch(() => {});
+        return interaction.editReply("Recusado.");
+      }
 
-      await member.roles.add(ROLE_SET_ID).catch(() => {});
+      // ✅ APROVAR
+      if (action === "aprovar") {
 
-      let nick = `${nome} | ${id}`;
-      if (nick.length > 32) nick = nick.slice(0, 32);
+        // 🎖️ CARGOS
+        await member.roles.add([ROLE_SET_ID, EXTRA_ROLE_ID]).catch(() => {});
 
-      try {
-        await member.setNickname(nick);
-      } catch {}
+        // 🏷️ NICK REAL
+        let nick = `${nome} | ${id}`;
+        if (nick.length > 32) nick = nick.slice(0, 32);
 
-      // 📁 PRONTUÁRIO
-      const prontuarioChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+        try {
+          await member.setNickname(nick);
+        } catch (err) {
+          console.log("Erro nick:", err.message);
+        }
 
-      await prontuarioChannel.send(
+        // 📁 PRONTUÁRIO
+        const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+
+        await requestChannel.send(
 `📁 **PRONTUÁRIO POLÔNIA**
 ━━━━━━━━━━━━━━━━━━━
 👤 Nome: ${nome}
 🆔 ID: ${id}
 🏷️ Nick: ${nick}
+🎖️ Cargos: Set + Membro
 👮 Aprovado por: <@${interaction.user.id}>
 ━━━━━━━━━━━━━━━━━━━`
-      );
+        );
 
-      await member.send(`✅ Aprovado!\nSeu nick: ${nick}`).catch(() => {});
+        await member.send(`✅ Aprovado!\nNick: ${nick}`).catch(() => {});
 
-      return interaction.editReply("✅ Aprovado com sucesso!");
+        return interaction.editReply(
+`✅ APROVADO
+
+👤 ${nome}
+🆔 ${id}
+🏷️ ${nick}
+🎖️ Cargos aplicados`
+        );
+      }
+
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply("❌ Erro.");
     }
   }
 });
@@ -212,6 +249,6 @@ Clique abaixo para entrar na família
 // 🔑 LOGIN
 client.login(TOKEN);
 
-// 💥 ANTI-CRASH
+// 💥 SEGURANÇA
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

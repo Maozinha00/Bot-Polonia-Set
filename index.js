@@ -23,8 +23,8 @@ const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495178025602515177";
-const APPROVAL_CHANNEL_ID = "1495790507182522450";
+const REQUEST_CHANNEL_ID = "1495178025602515177"; // 📁 PRONTUÁRIOS
+const APPROVAL_CHANNEL_ID = "1495790507182522450"; // 📊 ANÁLISE
 
 // 🤖 BOT
 const client = new Client({
@@ -48,15 +48,10 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
 client.once("ready", async () => {
   console.log(`🤖 Online: ${client.user.tag}`);
 
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
-    console.log("✅ /painelset registrado!");
-  } catch (err) {
-    console.error(err);
-  }
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: commands }
+  );
 });
 
 // =========================
@@ -73,63 +68,55 @@ client.on("interactionCreate", async (interaction) => {
         .setTitle("🇵🇱 POLÔNIA ROLEPLAY")
         .setDescription(
 `━━━━━━━━━━━━━━━━━━━
-🏴 **RECRUTAMENTO OFICIAL**
+🏴 RECRUTAMENTO OFICIAL
 
-Entre para a família e construa seu legado no RP.
-
-📌 Clique no botão abaixo para iniciar seu cadastro.
+Clique abaixo para entrar na família
 ━━━━━━━━━━━━━━━━━━━`
         );
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("abrir_set")
-          .setLabel("Entrar na Família")
+          .setLabel("Entrar")
           .setStyle(ButtonStyle.Success)
       );
 
-      return interaction.reply({
-        embeds: [embed],
-        components: [row]
-      });
+      return interaction.reply({ embeds: [embed], components: [row] });
     }
   }
 
-  // ===== BOTÃO =====
+  // ===== FORM =====
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
       .setTitle("Recrutamento");
 
-    const nome = new TextInputBuilder()
-      .setCustomId("nome")
-      .setLabel("Nome RP")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const id = new TextInputBuilder()
-      .setCustomId("id")
-      .setLabel("ID")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const crime = new TextInputBuilder()
-      .setCustomId("crime")
-      .setLabel("Histórico")
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true);
-
     modal.addComponents(
-      new ActionRowBuilder().addComponents(nome),
-      new ActionRowBuilder().addComponents(id),
-      new ActionRowBuilder().addComponents(crime)
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("nome")
+          .setLabel("Nome RP")
+          .setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("id")
+          .setLabel("ID")
+          .setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("crime")
+          .setLabel("Histórico")
+          .setStyle(TextInputStyle.Paragraph)
+      )
     );
 
     return interaction.showModal(modal);
   }
 
-  // ===== MODAL =====
+  // ===== ENVIO PARA APROVAÇÃO =====
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -140,11 +127,12 @@ Entre para a família e construa seu legado no RP.
 
     const embed = new EmbedBuilder()
       .setColor("#ffaa00")
-      .setTitle("Novo Recrutamento")
+      .setTitle("🚨 NOVO RECRUTAMENTO")
       .addFields(
-        { name: "Nome", value: nome },
-        { name: "ID", value: id },
-        { name: "Histórico", value: crime }
+        { name: "👤 Nome", value: nome },
+        { name: "🆔 ID", value: id },
+        { name: "📜 Histórico", value: crime },
+        { name: "📌 Discord", value: `<@${interaction.user.id}>` }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -152,7 +140,6 @@ Entre para a família e construa seu legado no RP.
         .setCustomId(`aprovar_${interaction.user.id}`)
         .setLabel("Aprovar")
         .setStyle(ButtonStyle.Success),
-
       new ButtonBuilder()
         .setCustomId(`recusar_${interaction.user.id}`)
         .setLabel("Recusar")
@@ -161,71 +148,70 @@ Entre para a família e construa seu legado no RP.
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    return interaction.reply({
-      content: "Pedido enviado!",
-      ephemeral: true
-    });
+    return interaction.reply({ content: "Pedido enviado!", ephemeral: true });
   }
 
   // ===== APROVAÇÃO =====
-  if (
-    interaction.isButton() &&
-    (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
-  ) {
+  if (interaction.isButton()) {
+
+    if (!interaction.customId.startsWith("aprovar_") && !interaction.customId.startsWith("recusar_")) return;
 
     await interaction.deferReply({ ephemeral: true });
 
-    try {
-      const executor = await interaction.guild.members.fetch(interaction.user.id);
+    const executor = await interaction.guild.members.fetch(interaction.user.id);
 
-      if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-        return interaction.editReply("Sem permissão.");
-      }
+    if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
+      return interaction.editReply("❌ Sem permissão.");
+    }
 
-      const [action, userId] = interaction.customId.split("_");
-      const member = await interaction.guild.members.fetch(userId);
+    const [action, userId] = interaction.customId.split("_");
+    const member = await interaction.guild.members.fetch(userId);
 
-      const embed = interaction.message.embeds[0];
-      const nome = embed.fields[0].value;
-      const id = embed.fields[1].value;
+    const embed = interaction.message.embeds[0];
+    const nome = embed.fields[0].value;
+    const id = embed.fields[1].value;
 
-      // ❌ RECUSAR
-      if (action === "recusar") {
-        return interaction.editReply("Recusado.");
-      }
+    // ❌ RECUSAR
+    if (action === "recusar") {
+      await member.send("❌ Você foi recusado.").catch(() => {});
+      return interaction.editReply("Recusado.");
+    }
 
-      // ✅ APROVAR
-      if (action === "aprovar") {
+    // ✅ APROVAR
+    if (action === "aprovar") {
 
-        await member.roles.add(ROLE_SET_ID).catch(() => {});
+      await member.roles.add(ROLE_SET_ID).catch(() => {});
 
-        // 🔥 ALTERAÇÃO REAL DO APELIDO
-        let nick = `${nome} | ${id}`;
+      let nick = `${nome} | ${id}`;
+      if (nick.length > 32) nick = nick.slice(0, 32);
 
-        if (nick.length > 32) {
-          nick = nick.substring(0, 32);
-        }
+      try {
+        await member.setNickname(nick);
+      } catch {}
 
-        try {
-          await member.setNickname(nick);
-          console.log("Nick alterado:", nick);
-        } catch (err) {
-          console.log("Erro ao mudar nick:", err.message);
-        }
+      // 📁 PRONTUÁRIO
+      const prontuarioChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
 
-        await member.send(`Você foi aprovado! Seu nick: ${nick}`).catch(() => {});
+      await prontuarioChannel.send(
+`📁 **PRONTUÁRIO POLÔNIA**
+━━━━━━━━━━━━━━━━━━━
+👤 Nome: ${nome}
+🆔 ID: ${id}
+🏷️ Nick: ${nick}
+👮 Aprovado por: <@${interaction.user.id}>
+━━━━━━━━━━━━━━━━━━━`
+      );
 
-        return interaction.editReply(`Aprovado e nick alterado para: ${nick}`);
-      }
+      await member.send(`✅ Aprovado!\nSeu nick: ${nick}`).catch(() => {});
 
-    } catch (err) {
-      console.error(err);
-      return interaction.editReply("Erro.");
+      return interaction.editReply("✅ Aprovado com sucesso!");
     }
   }
 });
 
+// 🔑 LOGIN
 client.login(TOKEN);
 
+// 💥 ANTI-CRASH
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

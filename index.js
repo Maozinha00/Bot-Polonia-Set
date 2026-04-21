@@ -185,9 +185,7 @@ Entre para a família e construa seu legado no RP.
       const executor = await interaction.guild.members.fetch(interaction.user.id);
 
       if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-        return interaction.editReply({
-          content: "❌ Apenas líderes podem fazer isso."
-        });
+        return interaction.editReply("❌ Apenas líderes podem fazer isso.");
       }
 
       const [action, userId] = interaction.customId.split("_");
@@ -209,10 +207,17 @@ Entre para a família e construa seu legado no RP.
 
         await member.roles.add(ROLE_SET_ID).catch(() => {});
 
-        const nick = `${nome} | ${id}`;
-        try { await member.setNickname(nick); } catch {}
+        // 🔥 NICK AUTOMÁTICO
+        let nick = `${nome} | ${id}`;
+        if (nick.length > 32) nick = nick.substring(0, 32);
 
-        await member.send("✅ Você foi aprovado na Polônia RP!").catch(() => {});
+        try {
+          await member.setNickname(nick);
+        } catch (err) {
+          console.log("Erro ao mudar nick:", err.message);
+        }
+
+        await member.send(`✅ Aprovado!\nSeu nick: ${nick}`).catch(() => {});
 
         const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
 
@@ -221,6 +226,7 @@ Entre para a família e construa seu legado no RP.
 ━━━━━━━━━━━━━━━━━━━
 👤 Nome: ${nome}
 🆔 ID: ${id}
+🏷️ Nick: ${nick}
 👮 Aprovado por: <@${interaction.user.id}>
 ━━━━━━━━━━━━━━━━━━━`
         );

@@ -23,15 +23,18 @@ const LEADER_ROLE_ID = process.env.LEADER_ROLE_ID;
 const ROLE_SET_ID = process.env.ROLE_SET_ID;
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495178025602515177"; // prontuário
-const APPROVAL_CHANNEL_ID = "1495790507182522450"; // aprovação
+const REQUEST_CHANNEL_ID = "1495178025602515177";
+const APPROVAL_CHANNEL_ID = "1495790507182522450";
 
 // 🤖 BOT
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers
+  ]
 });
 
-// 📌 COMANDO
+// 📌 COMANDO SLASH
 const commands = [
   new SlashCommandBuilder()
     .setName("painelset")
@@ -39,16 +42,22 @@ const commands = [
     .toJSON()
 ];
 
-// 🚀 REGISTRO
+// 🚀 REGISTRO DE COMANDO
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 client.once("ready", async () => {
   console.log(`🤖 Online: ${client.user.tag}`);
 
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+
+    console.log("✅ Slash command /painelset registrado com sucesso!");
+  } catch (err) {
+    console.error("❌ Erro ao registrar comando:", err);
+  }
 });
 
 // =========================
@@ -56,19 +65,19 @@ client.once("ready", async () => {
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // 🟣 PAINEL
+  // ===== COMANDO =====
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "painelset") {
 
       const embed = new EmbedBuilder()
-        .setTitle("🇵🇱 FAMÍLIA POLÔNIA")
-        .setDescription("🇵🇱 Lealdade, respeito e poder — a Família Polônia domina o submundo.")
+        .setTitle("🇵🇱 FAMÍLIA POLÔNIA RP")
+        .setDescription("Sistema de recrutamento oficial da organização.")
         .setColor("#000000");
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("abrir_set")
-          .setLabel("Entrar na Família")
+          .setLabel("📋 Entrar na Família")
           .setStyle(ButtonStyle.Success)
       );
 
@@ -79,7 +88,7 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // 🧾 FORMULÁRIO
+  // ===== BOTÃO =====
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
@@ -113,7 +122,7 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.showModal(modal);
   }
 
-  // 📩 ENVIO PARA APROVAÇÃO
+  // ===== MODAL =====
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -123,48 +132,46 @@ client.on("interactionCreate", async (interaction) => {
     const approvalChannel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
 
     const embed = new EmbedBuilder()
-      .setTitle("🚨 PEDIDO DE RECRUTAMENTO")
+      .setTitle("🚨 NOVO RECRUTAMENTO")
       .setColor("#ffaa00")
       .addFields(
-        { name: "👤 Nome", value: `**${nome}**`, inline: true },
-        { name: "🆔 ID", value: `**${id}**`, inline: true },
-        { name: "📜 Histórico", value: `**${crime}**`, inline: false },
+        { name: "👤 Nome", value: nome, inline: true },
+        { name: "🆔 ID", value: id, inline: true },
+        { name: "📜 Histórico", value: crime, inline: false },
         { name: "📌 Recruta", value: `<@${interaction.user.id}>`, inline: false }
       );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`aprovar_${interaction.user.id}`)
-        .setLabel("Aprovar")
+        .setLabel("✅ Aprovar")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId(`recusar_${interaction.user.id}`)
-        .setLabel("Recusar")
+        .setLabel("❌ Recusar")
         .setStyle(ButtonStyle.Danger)
     );
 
     await approvalChannel.send({
-      content: "🚨 Aguardando aprovação",
+      content: "🚨 Pedido aguardando análise",
       embeds: [embed],
       components: [row]
     });
 
     return interaction.reply({
-      content: "📨 Pedido enviado para análise!",
+      content: "📨 Pedido enviado!",
       ephemeral: true
     });
   }
 
-  // 🟢 APROVAR / ❌ RECUSAR
+  // ===== APROVAR / RECUSAR =====
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
   ) {
 
-    const member = interaction.member;
-
-    if (!member.roles.cache.has(LEADER_ROLE_ID)) {
+    if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
       return interaction.reply({
         content: "❌ Apenas líderes podem aprovar.",
         ephemeral: true
@@ -172,61 +179,57 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const [action, userId] = interaction.customId.split("_");
-    const guildMember = await interaction.guild.members.fetch(userId);
+    const member = await interaction.guild.members.fetch(userId);
 
     const embed = interaction.message.embeds[0];
 
-    const nomeRP = embed.fields.find(f => f.name === "👤 Nome").value.replace(/\*\*/g, "");
-    const idRP = embed.fields.find(f => f.name === "🆔 ID").value.replace(/\*\*/g, "");
-    const crime = embed.fields.find(f => f.name === "📜 Histórico").value.replace(/\*\*/g, "");
+    const nome = embed.fields.find(f => f.name === "👤 Nome").value;
+    const id = embed.fields.find(f => f.name === "🆔 ID").value;
 
     // ❌ RECUSAR
     if (action === "recusar") {
-      return interaction.reply({
-        content: `❌ Pedido recusado para <@${userId}>`
-      });
+      await member.send("❌ Seu pedido foi recusado.").catch(() => {});
+      return interaction.reply({ content: `❌ Recusado: <@${userId}>` });
     }
 
     // ✅ APROVAR
     if (action === "aprovar") {
 
-      await guildMember.roles.add(ROLE_SET_ID);
+      await member.roles.add(ROLE_SET_ID);
 
-      const newNick = `${nomeRP} | ${idRP}`;
-
+      const nick = `${nome} | ${id}`;
       try {
-        await guildMember.setNickname(newNick);
+        await member.setNickname(nick);
       } catch {}
+
+      await member.send("✅ Você foi aceito na Família Polônia!").catch(() => {});
 
       const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
 
-      // 📁 PRONTUÁRIO ESTILO FOTO
-      const prontuarioMsg =
-`📁 **NOVO PRONTUÁRIO RECEBIDO**
+      await requestChannel.send(
+`📁 **PRONTUÁRIO POLÔNIA**
 
 ━━━━━━━━━━━━━━
-🆔 **ID:** ${idRP}
-👤 **Nome:** ${nomeRP}
-🏢 **Unidade:** Polônia
-🎖️ **Cargo:** Membro
-👮 **Responsável:** <@${interaction.user.id}>
-━━━━━━━━━━━━━━`;
-
-      await requestChannel.send({
-        content: prontuarioMsg
-      });
+👤 Nome: ${nome}
+🆔 ID: ${id}
+👮 Aprovado por: <@${interaction.user.id}>
+━━━━━━━━━━━━━━`
+      );
 
       return interaction.reply({
         content:
-          `✅ APROVADO\n\n` +
-          `👤 ${nomeRP}\n` +
-          `🆔 ${idRP}\n` +
-          `✏️ ${newNick}`
+          `✅ APROVADO\n` +
+          `👤 ${nome}\n` +
+          `🆔 ${id}\n` +
+          `✏️ Nick: ${nick}`
       });
     }
   }
-
 });
 
 // 🔑 LOGIN
 client.login(TOKEN);
+
+// 💥 ANTI-CRASH
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);

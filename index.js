@@ -108,21 +108,18 @@ Entre para a família e construa seu legado no RP.
       .setCustomId("nome")
       .setLabel("Seu nome no RP")
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder("Ex: João Silva")
       .setRequired(true);
 
     const id = new TextInputBuilder()
       .setCustomId("id")
       .setLabel("ID no servidor")
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder("Ex: 123")
       .setRequired(true);
 
     const crime = new TextInputBuilder()
       .setCustomId("crime")
-      .setLabel("Histórico / Experiência RP")
+      .setLabel("Histórico RP")
       .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder("Conte sua experiência...")
       .setRequired(true);
 
     modal.addComponents(
@@ -146,26 +143,22 @@ Entre para a família e construa seu legado no RP.
     const embed = new EmbedBuilder()
       .setColor("#f59e0b")
       .setTitle("🚨 NOVA SOLICITAÇÃO")
-      .setDescription("Pedido aguardando análise da liderança")
       .addFields(
         { name: "👤 Nome", value: `\`${nome}\``, inline: true },
         { name: "🆔 ID", value: `\`${id}\``, inline: true },
         { name: "📜 Histórico", value: crime },
         { name: "📌 Recruta", value: `<@${interaction.user.id}>` }
-      )
-      .setFooter({ text: "Sistema de Recrutamento" });
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`aprovar_${interaction.user.id}`)
         .setLabel("Aprovar")
-        .setEmoji("✅")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId(`recusar_${interaction.user.id}`)
         .setLabel("Recusar")
-        .setEmoji("❌")
         .setStyle(ButtonStyle.Danger)
     );
 
@@ -175,7 +168,7 @@ Entre para a família e construa seu legado no RP.
     });
 
     return interaction.reply({
-      content: "📨 Seu pedido foi enviado para análise!",
+      content: "📨 Pedido enviado!",
       ephemeral: true
     });
   }
@@ -186,57 +179,64 @@ Entre para a família e construa seu legado no RP.
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
   ) {
 
-    if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
-      return interaction.reply({
-        content: "❌ Apenas líderes podem fazer isso.",
-        ephemeral: true
-      });
-    }
+    await interaction.deferReply({ ephemeral: true });
 
-    const [action, userId] = interaction.customId.split("_");
-    const member = await interaction.guild.members.fetch(userId);
+    try {
+      const executor = await interaction.guild.members.fetch(interaction.user.id);
 
-    const embedMsg = interaction.message.embeds[0];
+      if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
+        return interaction.editReply({
+          content: "❌ Apenas líderes podem fazer isso."
+        });
+      }
 
-    const nome = embedMsg.fields.find(f => f.name === "👤 Nome").value.replace(/`/g, "");
-    const id = embedMsg.fields.find(f => f.name === "🆔 ID").value.replace(/`/g, "");
+      const [action, userId] = interaction.customId.split("_");
+      const member = await interaction.guild.members.fetch(userId);
 
-    // ❌ RECUSAR
-    if (action === "recusar") {
-      await member.send("❌ Seu recrutamento foi recusado.").catch(() => {});
-      return interaction.reply({ content: `❌ Recrutamento recusado: <@${userId}>` });
-    }
+      const embedMsg = interaction.message.embeds[0];
 
-    // ✅ APROVAR
-    if (action === "aprovar") {
+      const nome = embedMsg.fields[0].value.replace(/`/g, "");
+      const id = embedMsg.fields[1].value.replace(/`/g, "");
 
-      await member.roles.add(ROLE_SET_ID);
+      // ❌ RECUSAR
+      if (action === "recusar") {
+        await member.send("❌ Você foi recusado.").catch(() => {});
+        return interaction.editReply(`❌ Recusado: <@${userId}>`);
+      }
 
-      const nick = `${nome} | ${id}`;
-      try { await member.setNickname(nick); } catch {}
+      // ✅ APROVAR
+      if (action === "aprovar") {
 
-      await member.send("✅ Você foi aprovado na Polônia RP!").catch(() => {});
+        await member.roles.add(ROLE_SET_ID).catch(() => {});
 
-      const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+        const nick = `${nome} | ${id}`;
+        try { await member.setNickname(nick); } catch {}
 
-      await requestChannel.send(
+        await member.send("✅ Você foi aprovado na Polônia RP!").catch(() => {});
+
+        const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+
+        await requestChannel.send(
 `📁 **PRONTUÁRIO POLÔNIA**
-
 ━━━━━━━━━━━━━━━━━━━
 👤 Nome: ${nome}
 🆔 ID: ${id}
 👮 Aprovado por: <@${interaction.user.id}>
 ━━━━━━━━━━━━━━━━━━━`
-      );
+        );
 
-      return interaction.reply({
-        content:
-`✅ **RECRUTAMENTO APROVADO**
+        return interaction.editReply(
+`✅ APROVADO
 
-👤 Nome: ${nome}
-🆔 ID: ${id}
-🏷️ Nick: ${nick}`
-      });
+👤 ${nome}
+🆔 ${id}
+🏷️ ${nick}`
+        );
+      }
+
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply("❌ Erro na aprovação.");
     }
   }
 });

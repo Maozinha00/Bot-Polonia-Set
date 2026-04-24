@@ -29,11 +29,16 @@ const ROLE_MEMBRO_HP_ID = "1477683902079303932";
 const REQUEST_CHANNEL_ID = "1495178025602515177"; 
 const APPROVAL_CHANNEL_ID = "1497304750214090846";
 
+// 🚫 CANAL BLOQUEADO
+const BLOCKED_CHANNEL_ID = "1477683904025591980";
+
 // 🤖 BOT
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -69,6 +74,28 @@ client.once("clientReady", async () => {
     console.log("✅ Comandos registrados!");
   } catch (err) {
     console.error(err);
+  }
+});
+
+// =========================
+// 🚫 BLOQUEIO DE CANAL
+// =========================
+client.on("messageCreate", async (message) => {
+
+  if (message.author.bot) return;
+
+  if (message.channel.id === BLOCKED_CHANNEL_ID) {
+
+    try {
+      await message.delete();
+
+      await message.author.send(
+`🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
+      ).catch(() => {});
+
+    } catch (err) {
+      console.log("Erro ao deletar mensagem:", err);
+    }
   }
 });
 
@@ -132,7 +159,7 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // 📋 ABRIR FORM
+  // 📋 FORM
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
@@ -168,7 +195,7 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // 📩 FORM SUBMIT + DM OBRIGATÓRIO
+  // 📩 FORM + DM OBRIGATÓRIO
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -209,22 +236,18 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    // =========================
-    // 💌 DM OBRIGATÓRIO
-    // =========================
+    // 💌 DM obrigatório
     const invite = "https://discord.gg/y6tJAK3fF5";
 
     try {
       await interaction.user.send(
-`🏥 **HOSPITAL BELLA - INSTRUÇÃO OBRIGATÓRIA**
+`🏥 **HOSPITAL BELLA**
 
-📌 Para continuar sua análise, você precisa entrar no servidor:
+📌 Entre no servidor obrigatório para validação:
 
 🔗 ${invite}
 
-⚠️ Sem isso sua candidatura pode ser recusada automaticamente.
-
-👨‍⚕️ Aguarde retorno da equipe médica.`
+⚠️ Sem isso sua candidatura pode ser recusada.`
       );
     } catch (err) {
       console.log("❌ DM bloqueada:", interaction.user.tag);
@@ -289,9 +312,9 @@ Faça parte da equipe médica do hospital.
           .setTitle("📁 PRONTUÁRIO MÉDICO OFICIAL")
           .setDescription("Registro de contratação do Hospital Bella")
           .addFields(
-            { name: "👤 Nome do Paciente", value: `\`${nome}\``, inline: true },
-            { name: "🆔 ID do Paciente", value: `\`${id}\``, inline: true },
-            { name: "🏷️ Nick no Servidor", value: `\`${nick}\``, inline: false },
+            { name: "👤 Nome", value: `\`${nome}\``, inline: true },
+            { name: "🆔 ID", value: `\`${id}\``, inline: true },
+            { name: "🏷️ Nick", value: `\`${nick}\``, inline: false },
             { name: "🩺 Cargo", value: "Paramédico", inline: true },
             { name: "👨‍⚕️ Responsável", value: `<@${interaction.user.id}>`, inline: true }
           )

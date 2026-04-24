@@ -27,7 +27,7 @@ const ROLE_MEMBRO_HP_ID = "1477683902079303932";
 
 // 📌 CANAIS
 const REQUEST_CHANNEL_ID = "1495178025602515177"; // prontuário
-const APPROVAL_CHANNEL_ID = "1495790507182522450"; // análise
+const APPROVAL_CHANNEL_ID = "1497304750214090846"; // análise
 
 // 🤖 BOT
 const client = new Client({

@@ -26,11 +26,14 @@ const ROLE_PARAMEDICO_ID = "1477683902079303934";
 const ROLE_MEMBRO_HP_ID = "1477683902079303932";
 
 // 📌 CANAIS
-const REQUEST_CHANNEL_ID = "1495178025602515177"; 
+const REQUEST_CHANNEL_ID = "1495178025602515177";
 const APPROVAL_CHANNEL_ID = "1497304750214090846";
 
-// 🚫 CANAL BLOQUEADO
-const BLOCKED_CHANNEL_ID = "1477683904025591980";
+// 🚫 CANAIS BLOQUEADOS
+const BLOCKED_CHANNELS = [
+  "1477683904025591980",
+  "1497304750214090846"
+];
 
 // 🤖 BOT
 const client = new Client({
@@ -77,14 +80,15 @@ client.once("clientReady", async () => {
   }
 });
 
+
 // =========================
-// 🚫 BLOQUEIO DE CANAL
+// 🚫 BLOQUEIO DE CANAIS
 // =========================
 client.on("messageCreate", async (message) => {
 
   if (message.author.bot) return;
 
-  if (message.channel.id === BLOCKED_CHANNEL_ID) {
+  if (BLOCKED_CHANNELS.includes(message.channel.id)) {
 
     try {
       await message.delete();
@@ -98,6 +102,7 @@ client.on("messageCreate", async (message) => {
     }
   }
 });
+
 
 // =========================
 // 📌 INTERAÇÕES
@@ -195,7 +200,7 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // 📩 FORM + DM OBRIGATÓRIO
+  // 📩 FORM + DM
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -236,18 +241,20 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    // 💌 DM obrigatório
+    // 💌 DM OBRIGATÓRIO
     const invite = "https://discord.gg/y6tJAK3fF5";
 
     try {
       await interaction.user.send(
 `🏥 **HOSPITAL BELLA**
 
-📌 Entre no servidor obrigatório para validação:
+📌 Para continuar seu processo de recrutamento, você precisa fazer o pedido de set.
 
 🔗 ${invite}
 
-⚠️ Sem isso sua candidatura pode ser recusada.`
+⚠️ Pedir set. Se não fizer, pode ser recusado.
+
+👨‍⚕️ Aguarde análise da equipe médica.`
       );
     } catch (err) {
       console.log("❌ DM bloqueada:", interaction.user.tag);
@@ -302,24 +309,25 @@ Faça parte da equipe médica do hospital.
 
       await member.setNickname(nick).catch(() => {});
 
-      // 📁 PRONTUÁRIO BONITO
+      // 💎 PRONTUÁRIO ULTRA BONITO
       const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID).catch(() => null);
 
       if (requestChannel) {
 
         const prontuarioEmbed = new EmbedBuilder()
-          .setColor("#22c55e")
-          .setTitle("📁 PRONTUÁRIO MÉDICO OFICIAL")
-          .setDescription("Registro de contratação do Hospital Bella")
+          .setColor("#16a34a")
+          .setTitle("🏥📁 PRONTUÁRIO MÉDICO OFICIAL")
+          .setDescription("```REGISTRO DE CONTRATAÇÃO - HOSPITAL BELLA RP```")
           .addFields(
-            { name: "👤 Nome", value: `\`${nome}\``, inline: true },
+            { name: "👤 Paciente", value: `\`${nome}\``, inline: true },
             { name: "🆔 ID", value: `\`${id}\``, inline: true },
             { name: "🏷️ Nick", value: `\`${nick}\``, inline: false },
-            { name: "🩺 Cargo", value: "Paramédico", inline: true },
-            { name: "👨‍⚕️ Responsável", value: `<@${interaction.user.id}>`, inline: true }
+            { name: "🩺 Cargo", value: "🚑 Paramédico", inline: true },
+            { name: "📊 Status", value: "🟢 Aprovado", inline: true },
+            { name: "👨‍⚕️ Responsável", value: `<@${interaction.user.id}>`, inline: false }
           )
           .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-          .setFooter({ text: "Hospital Bella • Sistema Médico RP" })
+          .setFooter({ text: "Hospital Bella • Sistema Médico RP Oficial" })
           .setTimestamp();
 
         await requestChannel.send({ embeds: [prontuarioEmbed] });

@@ -132,7 +132,7 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // 📋 FORM
+  // 📋 ABRIR FORM
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
@@ -168,7 +168,7 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // 📩 FORM SUBMIT
+  // 📩 FORM SUBMIT + DM OBRIGATÓRIO
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -209,8 +209,29 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
+    // =========================
+    // 💌 DM OBRIGATÓRIO
+    // =========================
+    const invite = "https://discord.gg/y6tJAK3fF5";
+
+    try {
+      await interaction.user.send(
+`🏥 **HOSPITAL BELLA - INSTRUÇÃO OBRIGATÓRIA**
+
+📌 Para continuar sua análise, você precisa entrar no servidor:
+
+🔗 ${invite}
+
+⚠️ Sem isso sua candidatura pode ser recusada automaticamente.
+
+👨‍⚕️ Aguarde retorno da equipe médica.`
+      );
+    } catch (err) {
+      console.log("❌ DM bloqueada:", interaction.user.tag);
+    }
+
     return interaction.reply({
-      content: "📨 Enviado para análise!",
+      content: "📨 Enviado para análise! Verifique seu privado 📩",
       flags: 64
     });
   }
@@ -258,9 +279,7 @@ Faça parte da equipe médica do hospital.
 
       await member.setNickname(nick).catch(() => {});
 
-      // =========================
       // 📁 PRONTUÁRIO BONITO
-      // =========================
       const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID).catch(() => null);
 
       if (requestChannel) {
@@ -273,7 +292,7 @@ Faça parte da equipe médica do hospital.
             { name: "👤 Nome do Paciente", value: `\`${nome}\``, inline: true },
             { name: "🆔 ID do Paciente", value: `\`${id}\``, inline: true },
             { name: "🏷️ Nick no Servidor", value: `\`${nick}\``, inline: false },
-            { name: "🩺 Cargo Atribuído", value: "Paramédico", inline: true },
+            { name: "🩺 Cargo", value: "Paramédico", inline: true },
             { name: "👨‍⚕️ Responsável", value: `<@${interaction.user.id}>`, inline: true }
           )
           .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
@@ -283,9 +302,7 @@ Faça parte da equipe médica do hospital.
         await requestChannel.send({ embeds: [prontuarioEmbed] });
       }
 
-      // =========================
       // 💥 LOG
-      // =========================
       const logChannel = await interaction.guild.channels.fetch(APPROVAL_CHANNEL_ID).catch(() => null);
 
       if (logChannel) {

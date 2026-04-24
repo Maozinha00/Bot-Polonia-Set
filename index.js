@@ -140,6 +140,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
         });
 
       } catch (err) {
+        console.error(err);
         return interaction.reply({
           content: "❌ Erro ao limpar mensagens.",
           flags: 64
@@ -149,7 +150,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
   }
 
   // =========================
-  // 📋 ABRIR FORMULÁRIO
+  // 📋 FORM
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
@@ -185,7 +186,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
   }
 
   // =========================
-  // 📩 ENVIO PARA ANÁLISE
+  // 📩 ENVIAR PARA ANÁLISE
   // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
@@ -193,7 +194,14 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
     const id = interaction.fields.getTextInputValue("id");
     const experiencia = interaction.fields.getTextInputValue("experiencia");
 
-    const channel = await client.channels.fetch(APPROVAL_CHANNEL_ID);
+    const channel = interaction.guild.channels.cache.get(APPROVAL_CHANNEL_ID);
+
+    if (!channel) {
+      return interaction.reply({
+        content: "❌ Canal de análise não encontrado.",
+        flags: 64
+      });
+    }
 
     const embed = new EmbedBuilder()
       .setColor("#facc15")
@@ -249,7 +257,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
       const nome = embed.fields[0].value;
       const id = embed.fields[1].value;
 
-      await interaction.message.delete().catch(() => {});
+      await interaction.message.delete().catch(console.error);
 
       // ❌ RECUSAR
       if (action === "recusar") {
@@ -267,14 +275,18 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
         await member.roles.add([
           ROLE_PARAMEDICO_ID,
           ROLE_MEMBRO_HP_ID
-        ]).catch(() => {});
+        ]).catch(console.error);
 
-        let nick = `${nome} | ${id}`;
-        if (nick.length > 32) nick = nick.slice(0, 32);
+        // 💥 AQUI ESTÁ O FIX DO [PARM]
+        let nick = `[PARM] ${nome} | ${id}`;
 
-        await member.setNickname(nick).catch(() => {});
+        if (nick.length > 32) {
+          nick = nick.slice(0, 32);
+        }
 
-        const requestChannel = await client.channels.fetch(REQUEST_CHANNEL_ID);
+        await member.setNickname(nick).catch(console.error);
+
+        const requestChannel = interaction.guild.channels.cache.get(REQUEST_CHANNEL_ID);
 
         await requestChannel.send(
 `📁 **PRONTUÁRIO MÉDICO - HOSPITAL BELLA**
@@ -306,6 +318,6 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 // 🔑 LOGIN
 client.login(TOKEN);
 
-// 💥 ANTI-CRASH
+// 💥 ANTI CRASH
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

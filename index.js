@@ -27,7 +27,7 @@ const ROLE_MEMBRO_HP_ID = "1477683902079303932";
 
 // 📌 CANAIS
 const REQUEST_CHANNEL_ID = "1495178025602515177"; // prontuário
-const APPROVAL_CHANNEL_ID = "1497304750214090846"; // análise
+const APPROVAL_CHANNEL_ID = "1497304750214090846"; // análise + LOG
 
 // 🤖 BOT
 const client = new Client({
@@ -82,7 +82,6 @@ client.on("interactionCreate", async (interaction) => {
   // =========================
   if (interaction.isChatInputCommand()) {
 
-    // ===== PAINEL =====
     if (interaction.commandName === "painelset") {
 
       const embed = new EmbedBuilder()
@@ -90,11 +89,11 @@ client.on("interactionCreate", async (interaction) => {
         .setTitle("🏥 HOSPITAL BELLA")
         .setDescription(
 `━━━━━━━━━━━━━━━━━━━
-👨‍⚕️ **RECRUTAMENTO OFICIAL - HP**
+👨‍⚕️ **RECRUTAMENTO OFICIAL**
 
-Faça parte da equipe médica e ajude a salvar vidas no RP.
+Faça parte da equipe médica do hospital.
 
-📋 Clique no botão abaixo para realizar seu cadastro.
+📋 Clique no botão abaixo para se cadastrar.
 ━━━━━━━━━━━━━━━━━━━`
         )
         .setFooter({ text: "Sistema Hospitalar • Bella RP" });
@@ -112,7 +111,6 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
       });
     }
 
-    // ===== LIMPAR =====
     if (interaction.commandName === "limpar") {
 
       const quantidade = interaction.options.getInteger("quantidade");
@@ -126,7 +124,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 
       if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
         return interaction.reply({
-          content: "❌ Você não tem permissão.",
+          content: "❌ Sem permissão.",
           flags: 64
         });
       }
@@ -176,7 +174,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("experiencia")
-          .setLabel("Experiência na área médica")
+          .setLabel("Experiência médica")
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
       )
@@ -198,14 +196,14 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 
     if (!channel) {
       return interaction.reply({
-        content: "❌ Canal de análise não encontrado.",
+        content: "❌ Canal não encontrado.",
         flags: 64
       });
     }
 
     const embed = new EmbedBuilder()
       .setColor("#facc15")
-      .setTitle("📋 NOVO CADASTRO - HOSPITAL")
+      .setTitle("📋 NOVO CADASTRO")
       .addFields(
         { name: "👤 Nome", value: nome },
         { name: "🆔 ID", value: id },
@@ -228,7 +226,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
     await channel.send({ embeds: [embed], components: [row] });
 
     return interaction.reply({
-      content: "📨 Cadastro enviado para análise!",
+      content: "📨 Enviado para análise!",
       flags: 64
     });
   }
@@ -244,10 +242,11 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
     await interaction.deferReply({ flags: 64 });
 
     try {
+
       const executor = await interaction.guild.members.fetch(interaction.user.id);
 
       if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-        return interaction.editReply("❌ Você não tem permissão.");
+        return interaction.editReply("❌ Sem permissão.");
       }
 
       const [action, userId] = interaction.customId.split("_");
@@ -262,7 +261,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
       // ❌ RECUSAR
       if (action === "recusar") {
         return interaction.editReply(
-`❌ **CADASTRO REPROVADO**
+`❌ **RECUSADO**
 
 👤 ${nome}
 🆔 ${id}`
@@ -277,7 +276,6 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
           ROLE_MEMBRO_HP_ID
         ]).catch(console.error);
 
-        // 💥 AQUI ESTÁ O FIX DO [PARM]
         let nick = `[PARM] ${nome} | ${id}`;
 
         if (nick.length > 32) {
@@ -286,10 +284,11 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 
         await member.setNickname(nick).catch(console.error);
 
+        // 📁 PRONTUÁRIO
         const requestChannel = interaction.guild.channels.cache.get(REQUEST_CHANNEL_ID);
 
         await requestChannel.send(
-`📁 **PRONTUÁRIO MÉDICO - HOSPITAL BELLA**
+`📁 **PRONTUÁRIO MÉDICO**
 ━━━━━━━━━━━━━━━━━━━
 👤 Nome: ${nome}
 🆔 ID: ${id}
@@ -299,8 +298,27 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 ━━━━━━━━━━━━━━━━━━━`
         );
 
+        // 💥 LOG DE CONTRATAÇÃO
+        const logChannel = interaction.guild.channels.cache.get(APPROVAL_CHANNEL_ID);
+
+        if (logChannel) {
+          const logEmbed = new EmbedBuilder()
+            .setColor("#00ff7f")
+            .setTitle("🟢 NOVA CONTRATAÇÃO")
+            .addFields(
+              { name: "👤 Nome", value: nome },
+              { name: "🆔 ID", value: id },
+              { name: "🏷️ Nick", value: nick },
+              { name: "🎖️ Cargo", value: "Paramédico" },
+              { name: "👮 Aprovado por", value: `<@${interaction.user.id}>` }
+            )
+            .setTimestamp();
+
+          await logChannel.send({ embeds: [logEmbed] });
+        }
+
         return interaction.editReply(
-`✅ **APROVADO COM SUCESSO**
+`✅ **APROVADO**
 
 👤 ${nome}
 🆔 ${id}
@@ -310,7 +328,7 @@ Faça parte da equipe médica e ajude a salvar vidas no RP.
 
     } catch (err) {
       console.error(err);
-      return interaction.editReply("❌ Erro ao processar.");
+      return interaction.editReply("❌ Erro interno.");
     }
   }
 });

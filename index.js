@@ -33,6 +33,7 @@ const DISMISS_LOG_CHANNEL_ID = "1477683907754197099";
 // 🚫 BLOQUEADOS
 const BLOCKED_CHANNELS = [
   "1477683904025591980",
+  "1497304750214090846"
 ];
 
 // 🤖 BOT
@@ -49,7 +50,7 @@ const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName("painelset")
-    .setDescription("Abrir painel de recrutamento")
+    .setDescription("Abrir painel de recrutamento do Hospital Bella")
     .toJSON(),
 
   new SlashCommandBuilder()
@@ -64,18 +65,22 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
 client.once("clientReady", async () => {
   console.log(`🤖 Online: ${client.user.tag}`);
 
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // 🚫 BLOQUEIO
-client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
 
-  if (BLOCKED_CHANNELS.includes(msg.channel.id)) {
-    await msg.delete().catch(() => {});
+  if (BLOCKED_CHANNELS.includes(message.channel.id)) {
+    await message.delete().catch(() => {});
   }
 });
 
@@ -83,11 +88,10 @@ client.on("messageCreate", async (msg) => {
 client.on("interactionCreate", async (interaction) => {
 
   // =========================
-  // 📌 COMANDOS
+  // COMANDOS
   // =========================
   if (interaction.isChatInputCommand()) {
 
-    // 🟢 PAINEL SET
     if (interaction.commandName === "painelset") {
 
       const embed = new EmbedBuilder()
@@ -113,7 +117,6 @@ Faça parte da equipe médica do hospital.
       return interaction.reply({ embeds: [embed], components: [row] });
     }
 
-    // 🔴 PAINEL DEMISSÃO
     if (interaction.commandName === "paineldemissao") {
 
       const embed = new EmbedBuilder()
@@ -139,110 +142,43 @@ Clique abaixo para demitir.
   }
 
   // =========================
-  // 📋 FORM SET
+  // FORM SET (ORIGINAL)
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("Cadastro");
+      .setTitle("Cadastro Hospital Bella");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("nome")
-          .setLabel("Nome")
+          .setLabel("Nome RP")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("id")
-          .setLabel("ID")
+          .setLabel("ID do Jogador")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("experiencia")
+          .setLabel("Experiência médica")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
       )
     );
 
     return interaction.showModal(modal);
   }
 
-  // 📩 ENVIO CADASTRO
-  if (interaction.isModalSubmit() && interaction.customId === "form_set") {
-
-    const nome = interaction.fields.getTextInputValue("nome");
-    const id = interaction.fields.getTextInputValue("id");
-
-    const channel = await interaction.guild.channels.fetch(APPROVAL_CHANNEL_ID);
-
-    const embed = new EmbedBuilder()
-      .setColor("#facc15")
-      .setTitle("📋 NOVO CADASTRO")
-      .addFields(
-        { name: "Nome", value: nome },
-        { name: "ID", value: id }
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`aprovar_${interaction.user.id}`)
-        .setLabel("Aprovar")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId(`recusar_${interaction.user.id}`)
-        .setLabel("Recusar")
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await channel.send({ embeds: [embed], components: [row] });
-
-    return interaction.reply({ content: "📨 Enviado!", flags: 64 });
-  }
-
   // =========================
-  // ✅ APROVAR
-  // =========================
-  if (interaction.isButton() && interaction.customId.startsWith("aprovar_")) {
-
-    await interaction.deferReply({ flags: 64 });
-
-    const [_, userId] = interaction.customId.split("_");
-    const member = await interaction.guild.members.fetch(userId);
-
-    const embed = interaction.message.embeds[0];
-    const nome = embed.fields[0].value;
-    const id = embed.fields[1].value;
-
-    await interaction.message.delete().catch(() => {});
-
-    await member.roles.add([ROLE_PARAMEDICO_ID, ROLE_MEMBRO_HP_ID]);
-
-    let requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID);
-
-    const prontuarioEmbed = new EmbedBuilder()
-      .setColor("#5a1a0e")
-      .setTitle("📋 PEDIDO DE SET")
-      .setDescription(
-"```yaml\n" +
-`Nome: ${nome}
-ID: ${id}
-Unidade: hp
-Cargo: Diretor
-Responsável: ${interaction.user.username}` +
-"\n```"
-      )
-      .addFields(
-        { name: "👤 Usuário", value: `<@${member.id}> 👑` },
-        { name: "📌 Status", value: `Aprovado por <@${interaction.user.id}> 👑 ✅ *(editado)*` }
-      )
-      .setTimestamp();
-
-    await requestChannel.send({ embeds: [prontuarioEmbed] });
-
-    return interaction.editReply("✅ Aprovado!");
-  }
-
-  // =========================
-  // ❌ DEMISSÃO
+  // FORM DEMISSÃO
   // =========================
   if (interaction.isButton() && interaction.customId === "abrir_demissao") {
 
@@ -256,64 +192,104 @@ Responsável: ${interaction.user.username}` +
           .setCustomId("id")
           .setLabel("ID do membro")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("motivo")
           .setLabel("Motivo")
           .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
       )
     );
 
     return interaction.showModal(modal);
   }
 
+  // =========================
+  // ENVIO SET (ORIGINAL)
+  // =========================
+  if (interaction.isModalSubmit() && interaction.customId === "form_set") {
+
+    const nome = interaction.fields.getTextInputValue("nome");
+    const id = interaction.fields.getTextInputValue("id");
+    const experiencia = interaction.fields.getTextInputValue("experiencia");
+
+    const channel = await interaction.guild.channels.fetch(APPROVAL_CHANNEL_ID).catch(() => null);
+
+    if (!channel) {
+      return interaction.reply({ content: "❌ Canal não encontrado.", flags: 64 });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor("#facc15")
+      .setTitle("📋 NOVO CADASTRO")
+      .addFields(
+        { name: "👤 Nome", value: nome },
+        { name: "🆔 ID", value: id },
+        { name: "🩺 Experiência", value: experiencia },
+        { name: "📌 Discord", value: `<@${interaction.user.id}>` }
+      );
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel("Aprovar").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel("Recusar").setStyle(ButtonStyle.Danger)
+    );
+
+    await channel.send({ embeds: [embed], components: [row] });
+
+    return interaction.reply({ content: "📨 Enviado para análise!", flags: 64 });
+  }
+
+  // =========================
+  // DEMISSÃO FINAL
+  // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_demissao") {
 
     await interaction.deferReply({ flags: 64 });
 
+    if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
+      return interaction.editReply("❌ Sem permissão.");
+    }
+
     const userId = interaction.fields.getTextInputValue("id");
     const motivo = interaction.fields.getTextInputValue("motivo");
 
-    const member = await interaction.guild.members.fetch(userId);
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
+    if (!member) return interaction.editReply("❌ Membro não encontrado.");
 
-    // ❌ remover cargos
-    await member.roles.remove([
-      ROLE_PARAMEDICO_ID,
-      ROLE_MEMBRO_HP_ID
-    ]).catch(() => {});
+    // remove cargos
+    await member.roles.remove([ROLE_PARAMEDICO_ID, ROLE_MEMBRO_HP_ID]).catch(() => {});
 
-    // 🧹 limpar nick
+    // limpa nick
     let nickAtual = member.nickname || member.user.username;
-
-    let nickLimpo = nickAtual
-      .replace(/\[.*?\]\s*/g, "")
-      .split("|")[0]
-      .trim();
+    let nickLimpo = nickAtual.replace(/\[.*?\]\s*/g, "").split("|")[0].trim();
 
     await member.setNickname(nickLimpo).catch(() => {});
 
-    // 📝 LOG
-    const logChannel = await interaction.guild.channels.fetch(DISMISS_LOG_CHANNEL_ID);
+    // log
+    const logChannel = await interaction.guild.channels.fetch(DISMISS_LOG_CHANNEL_ID).catch(() => null);
 
-    const embed = new EmbedBuilder()
-      .setColor("#7f1d1d")
-      .setTitle("📋 DEMISSÃO")
-      .setDescription(
+    if (logChannel) {
+      const embed = new EmbedBuilder()
+        .setColor("#7f1d1d")
+        .setTitle("📋 DEMISSÃO")
+        .setDescription(
 "```yaml\n" +
 `Membro: ${member.user.username}
 ID: ${member.id}
 Motivo: ${motivo}
 Responsável: ${interaction.user.username}` +
 "\n```"
-      )
-      .addFields(
-        { name: "👤 Usuário", value: `<@${member.id}>` },
-        { name: "📌 Status", value: `Demitido por <@${interaction.user.id}> ❌` }
-      )
-      .setTimestamp();
+        )
+        .addFields(
+          { name: "👤 Usuário", value: `<@${member.id}>` },
+          { name: "📌 Status", value: `Demitido por <@${interaction.user.id}> ❌` }
+        )
+        .setTimestamp();
 
-    await logChannel.send({ embeds: [embed] });
+      await logChannel.send({ embeds: [embed] });
+    }
 
     return interaction.editReply("✅ Demitido com sucesso!");
   }
@@ -321,6 +297,5 @@ Responsável: ${interaction.user.username}` +
 
 client.login(TOKEN);
 
-// 💥 ANTI CRASH
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);

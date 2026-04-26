@@ -84,26 +84,33 @@ client.once("clientReady", async () => {
 // 🚫 BLOQUEIO DE CANAIS
 // =========================
 client.on("messageCreate", async (message) => {
+
   if (message.author.bot) return;
 
   if (BLOCKED_CHANNELS.includes(message.channel.id)) {
+
     try {
       await message.delete();
 
       await message.author.send(
 `🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
       ).catch(() => {});
+
     } catch (err) {
       console.log("Erro ao deletar mensagem:", err);
     }
   }
 });
 
+
 // =========================
 // 📌 INTERAÇÕES
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
+  // =========================
+  // 📌 COMANDOS
+  // =========================
   if (interaction.isChatInputCommand()) {
 
     if (interaction.commandName === "painelset") {
@@ -233,6 +240,24 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
+    const invite = "https://discord.gg/y6tJAK3fF5";
+
+    try {
+      await interaction.user.send(
+`🏥 **HOSPITAL BELLA**
+
+📌 Para continuar seu processo de recrutamento, você precisa fazer o pedido de set.
+
+🔗 ${invite}
+
+⚠️ Pedir set. Se não fizer, pode ser recusado.
+
+👨‍⚕️ Aguarde análise da equipe médica.`
+      );
+    } catch (err) {
+      console.log("❌ DM bloqueada:", interaction.user.tag);
+    }
+
     return interaction.reply({
       content: "📨 Enviado para análise! Verifique seu privado 📩",
       flags: 64
@@ -240,22 +265,13 @@ Faça parte da equipe médica do hospital.
   }
 
   // =========================
-  // ✅ APROVAR / ❌ RECUSAR
+  // ✅ APROVAR
   // =========================
-  if (
-    interaction.isButton() &&
-    (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
-  ) {
+  if (interaction.isButton() && interaction.customId.startsWith("aprovar_")) {
 
     await interaction.deferReply({ flags: 64 });
 
-    const executor = await interaction.guild.members.fetch(interaction.user.id);
-
-    if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-      return interaction.editReply("❌ Sem permissão.");
-    }
-
-    const [action, userId] = interaction.customId.split("_");
+    const [_, userId] = interaction.customId.split("_");
     const member = await interaction.guild.members.fetch(userId);
 
     const embed = interaction.message.embeds[0];
@@ -264,62 +280,32 @@ Faça parte da equipe médica do hospital.
 
     await interaction.message.delete().catch(() => {});
 
-    if (action === "recusar") {
-      return interaction.editReply(`❌ RECUSADO\n\n👤 ${nome}\n🆔 ${id}`);
-    }
+    await member.roles.add([ROLE_PARAMEDICO_ID, ROLE_MEMBRO_HP_ID]);
 
-    // ✅ APROVAR
-    if (action === "aprovar") {
+    const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID);
 
-      await member.roles.add([
-        ROLE_PARAMEDICO_ID,
-        ROLE_MEMBRO_HP_ID
-      ]);
-
-      let nick = `[PARM] ${nome} | ${id}`;
-      if (nick.length > 32) nick = nick.slice(0, 32);
-
-      await member.setNickname(nick).catch(() => {});
-
-      const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID).catch(() => null);
-
-      if (requestChannel) {
-
-        const prontuarioEmbed = new EmbedBuilder()
-          .setColor("#5a1a0e")
-          .setTitle("📋 PEDIDO DE SET")
-          .setDescription(
+    const prontuarioEmbed = new EmbedBuilder()
+      .setColor("#5a1a0e")
+      .setTitle("📋 PEDIDO DE SET")
+      .setDescription(
 "```yaml\n" +
 `Nome:        ${nome}
 ID:          ${id}
 Unidade:     hp
-Cargo:       Diretor
+Cargo:       Paramédico
 Responsável: ${interaction.user.username}` +
 "\n```"
-          )
-          .addFields(
-            {
-              name: "👤 Usuário",
-              value: `<@${member.id}>`
-            },
-            {
-              name: "📌 Status",
-              value: `Aprovado por <@${interaction.user.id}> ✅`
-            }
-          )
-          .setTimestamp();
+      )
+      .addFields(
+        { name: "👤 Usuário", value: `<@${member.id}>` },
+        { name: "📌 Status", value: `Aprovado por <@${interaction.user.id}> ✅` }
+      )
+      .setTimestamp();
 
-        await requestChannel.send({ embeds: [prontuarioEmbed] });
-      }
+    await requestChannel.send({ embeds: [prontuarioEmbed] });
 
-      return interaction.editReply(`✅ APROVADO\n\n👤 ${nome}\n🆔 ${id}\n🏷️ ${nick}`);
-    }
+    return interaction.editReply("✅ Aprovado!");
   }
 });
 
-// 🔑 LOGIN
 client.login(TOKEN);
-
-// 💥 ANTI CRASH
-process.on("unhandledRejection", console.error);
-process.on("uncaughtException", console.error);

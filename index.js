@@ -70,36 +70,26 @@ client.once("clientReady", async () => {
   }
 });
 
-// =========================
-// 🚫 BLOQUEIO DE CANAIS
-// =========================
+// 🚫 BLOQUEIO
 client.on("messageCreate", async (message) => {
-
   if (message.author.bot) return;
 
   if (BLOCKED_CHANNELS.includes(message.channel.id)) {
-
     try {
       await message.delete();
-
       await message.author.send(
-`🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
+        `🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
       ).catch(() => {});
-
     } catch (err) {
       console.log("Erro ao deletar mensagem:", err);
     }
   }
 });
 
-// =========================
 // 📌 INTERAÇÕES
-// =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // =========================
-  // 📌 COMANDO
-  // =========================
+  // COMANDO
   if (interaction.isChatInputCommand()) {
 
     if (interaction.commandName === "painelset") {
@@ -132,9 +122,7 @@ Faça parte da equipe médica do hospital.
     }
   }
 
-  // =========================
-  // 📋 FORM
-  // =========================
+  // FORM
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
@@ -168,9 +156,7 @@ Faça parte da equipe médica do hospital.
     return interaction.showModal(modal);
   }
 
-  // =========================
-  // 📩 FORM + DM
-  // =========================
+  // ENVIO
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
@@ -210,33 +196,13 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    const invite = "https://discord.gg/y6tJAK3fF5";
-
-    try {
-      await interaction.user.send(
-`🏥 **HOSPITAL BELLA**
-
-📌 Para continuar seu processo de recrutamento, você precisa fazer o pedido de set.
-
-🔗 ${invite}
-
-⚠️ Pedir set. Se não fizer, pode ser recusado.
-
-👨‍⚕️ Aguarde análise da equipe médica.`
-      );
-    } catch (err) {
-      console.log("❌ DM bloqueada:", interaction.user.tag);
-    }
-
     return interaction.reply({
-      content: "📨 Enviado para análise! Verifique seu privado 📩",
+      content: "📨 Enviado para análise!",
       flags: 64
     });
   }
 
-  // =========================
-  // ✅ APROVAR / ❌ RECUSAR
-  // =========================
+  // APROVAR / RECUSAR
   if (
     interaction.isButton() &&
     (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
@@ -260,67 +226,53 @@ Faça parte da equipe médica do hospital.
     await interaction.message.delete().catch(() => {});
 
     if (action === "recusar") {
-      return interaction.editReply(`❌ RECUSADO\n\n👤 ${nome}\n🆔 ${id}`);
+      return interaction.editReply("❌ Recusado.");
     }
 
-    // =========================
     // ✅ APROVAR
-    // =========================
-    if (action === "aprovar") {
+    await member.roles.add([ROLE_PARAMEDICO_ID, ROLE_MEMBRO_HP_ID]);
 
-      await member.roles.add([
-        ROLE_PARAMEDICO_ID,
-        ROLE_MEMBRO_HP_ID
-      ]);
+    let requestChannel = null;
+    try {
+      requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID);
+    } catch {}
 
-      let nick = `[PARM] ${nome} | ${id}`;
-      if (nick.length > 32) nick = nick.slice(0, 32);
+    if (requestChannel) {
 
-      await member.setNickname(nick).catch(() => {});
-
-      let requestChannel = null;
-      try {
-        requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID);
-      } catch {}
-
-      if (requestChannel) {
-
-        const prontuarioEmbed = new EmbedBuilder()
-          .setColor("#4b1d12")
-          .setTitle("📋 PEDIDO DE SET")
-          .setDescription(
-"```" +
+      const prontuarioEmbed = new EmbedBuilder()
+        .setColor("#5a1a0e")
+        .setTitle("📋 PEDIDO DE SET")
+        .setDescription(
+"```yaml\n" +
 `Nome: ${nome}
 ID: ${id}
 Unidade: hp
 Cargo: Diretor
 Responsável: ${interaction.user.username}` +
-"```"
-          )
-          .addFields(
-            {
-              name: "👤 Usuário",
-              value: `<@${member.id}> 👑`
-            },
-            {
-              name: "📌 Status",
-              value: `Aprovado por <@${interaction.user.id}> 👑 ✅ *(editado)*`
-            }
-          )
-          .setTimestamp();
+"\n```"
+        )
+        .addFields(
+          {
+            name: "👤 Usuário",
+            value: `<@${member.id}> 👑`
+          },
+          {
+            name: "📌 Status",
+            value: `Aprovado por <@${interaction.user.id}> 👑 ✅ *(editado)*`
+          }
+        )
+        .setTimestamp();
 
-        await requestChannel.send({ embeds: [prontuarioEmbed] });
-      }
-
-      return interaction.editReply({
-        content: "✅ Aprovado!",
-        flags: 64
-      });
+      await requestChannel.send({ embeds: [prontuarioEmbed] });
     }
+
+    return interaction.editReply({
+      content: "✅ Aprovado!",
+      flags: 64
+    });
   }
 });
 
-// 🔑 LOGIN
 client.login(TOKEN);
 
 // 💥 ANTI CRASH

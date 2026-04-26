@@ -80,38 +80,30 @@ client.once("clientReady", async () => {
   }
 });
 
-
 // =========================
 // 🚫 BLOQUEIO DE CANAIS
 // =========================
 client.on("messageCreate", async (message) => {
-
   if (message.author.bot) return;
 
   if (BLOCKED_CHANNELS.includes(message.channel.id)) {
-
     try {
       await message.delete();
 
       await message.author.send(
 `🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
       ).catch(() => {});
-
     } catch (err) {
       console.log("Erro ao deletar mensagem:", err);
     }
   }
 });
 
-
 // =========================
 // 📌 INTERAÇÕES
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
-  // =========================
-  // 📌 COMANDOS
-  // =========================
   if (interaction.isChatInputCommand()) {
 
     if (interaction.commandName === "painelset") {
@@ -241,24 +233,6 @@ Faça parte da equipe médica do hospital.
 
     await channel.send({ embeds: [embed], components: [row] });
 
-    const invite = "https://discord.gg/y6tJAK3fF5";
-
-    try {
-      await interaction.user.send(
-`🏥 **HOSPITAL BELLA**
-
-📌 Para continuar seu processo de recrutamento, você precisa fazer o pedido de set.
-
-🔗 ${invite}
-
-⚠️ Pedir set. Se não fizer, pode ser recusado.
-
-👨‍⚕️ Aguarde análise da equipe médica.`
-      );
-    } catch (err) {
-      console.log("❌ DM bloqueada:", interaction.user.tag);
-    }
-
     return interaction.reply({
       content: "📨 Enviado para análise! Verifique seu privado 📩",
       flags: 64
@@ -311,29 +285,26 @@ Faça parte da equipe médica do hospital.
 
       if (requestChannel) {
 
-        // 🔥 AQUI ESTÁ A ÚNICA MUDANÇA (IGUAL IMAGEM)
         const prontuarioEmbed = new EmbedBuilder()
           .setColor("#5a1a0e")
           .setTitle("📋 PEDIDO DE SET")
           .setDescription(
-            "```" +
-`Nome: ${nome}
-ID: ${id}
-Unidade: hp
-Cargo: Diretor
+"```yaml\n" +
+`Nome:        ${nome}
+ID:          ${id}
+Unidade:     hp
+Cargo:       Diretor
 Responsável: ${interaction.user.username}` +
-            "```"
+"\n```"
           )
           .addFields(
             {
               name: "👤 Usuário",
-              value: `<@${member.id}>`,
-              inline: false
+              value: `<@${member.id}>`
             },
             {
               name: "📌 Status",
-              value: `Aprovado por <@${interaction.user.id}> ✅`,
-              inline: false
+              value: `Aprovado por <@${interaction.user.id}> ✅`
             }
           )
           .setTimestamp();

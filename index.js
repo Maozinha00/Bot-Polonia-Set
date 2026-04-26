@@ -49,48 +49,69 @@ const client = new Client({
 const commands = [
   new SlashCommandBuilder()
     .setName("painelset")
-    .setDescription("Abrir painel de recrutamento")
+    .setDescription("Abrir painel de recrutamento do Hospital Bella")
     .toJSON(),
 
   new SlashCommandBuilder()
     .setName("limpar")
-    .setDescription("Apagar mensagens")
+    .setDescription("Apagar mensagens do canal")
     .addIntegerOption(option =>
       option.setName("quantidade")
-        .setDescription("1-100")
+        .setDescription("Quantidade de mensagens (1-100)")
         .setRequired(true)
     )
     .toJSON()
 ];
 
+// 🚀 REGISTRO
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 client.once("clientReady", async () => {
   console.log(`🤖 Online: ${client.user.tag}`);
 
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: commands }
+    );
+    console.log("✅ Comandos registrados!");
+  } catch (err) {
+    console.error(err);
+  }
 });
 
+
 // =========================
-// 🚫 BLOQUEIO
+// 🚫 BLOQUEIO DE CANAIS
 // =========================
 client.on("messageCreate", async (message) => {
+
   if (message.author.bot) return;
 
   if (BLOCKED_CHANNELS.includes(message.channel.id)) {
-    await message.delete().catch(() => {});
+
+    try {
+      await message.delete();
+
+      await message.author.send(
+`🚫 Você não pode enviar mensagens nesse canal do Hospital Bella.`
+      ).catch(() => {});
+
+    } catch (err) {
+      console.log("Erro ao deletar mensagem:", err);
+    }
   }
 });
+
 
 // =========================
 // 📌 INTERAÇÕES
 // =========================
 client.on("interactionCreate", async (interaction) => {
 
+  // =========================
   // 📌 COMANDOS
+  // =========================
   if (interaction.isChatInputCommand()) {
 
     if (interaction.commandName === "painelset") {
@@ -98,7 +119,16 @@ client.on("interactionCreate", async (interaction) => {
       const embed = new EmbedBuilder()
         .setColor("#22c55e")
         .setTitle("🏥 HOSPITAL BELLA")
-        .setDescription("Clique abaixo para se cadastrar");
+        .setDescription(
+`━━━━━━━━━━━━━━━━━━━
+👨‍⚕️ **RECRUTAMENTO OFICIAL**
+
+Faça parte da equipe médica do hospital.
+
+📋 Clique no botão abaixo para se cadastrar.
+━━━━━━━━━━━━━━━━━━━`
+        )
+        .setFooter({ text: "Sistema Hospitalar • Bella RP" });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -107,61 +137,94 @@ client.on("interactionCreate", async (interaction) => {
           .setStyle(ButtonStyle.Success)
       );
 
-      return interaction.reply({ embeds: [embed], components: [row] });
+      return interaction.reply({
+        embeds: [embed],
+        components: [row]
+      });
     }
 
     if (interaction.commandName === "limpar") {
 
+      const quantidade = interaction.options.getInteger("quantidade");
+
       if (!interaction.member.roles.cache.has(LEADER_ROLE_ID)) {
-        return interaction.reply({ content: "❌ Sem permissão.", flags: 64 });
+        return interaction.reply({
+          content: "❌ Sem permissão.",
+          flags: 64
+        });
       }
 
-      const quantidade = interaction.options.getInteger("quantidade");
       await interaction.channel.bulkDelete(quantidade, true);
 
-      return interaction.reply({ content: "🧹 Limpo!", flags: 64 });
+      return interaction.reply({
+        content: `🧹 ${quantidade} mensagens apagadas!`,
+        flags: 64
+      });
     }
   }
 
+  // =========================
   // 📋 FORM
+  // =========================
   if (interaction.isButton() && interaction.customId === "abrir_set") {
 
     const modal = new ModalBuilder()
       .setCustomId("form_set")
-      .setTitle("Cadastro");
+      .setTitle("Cadastro Hospital Bella");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("nome")
-          .setLabel("Nome")
+          .setLabel("Nome RP")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("id")
-          .setLabel("ID")
+          .setLabel("ID do Jogador")
           .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("experiencia")
+          .setLabel("Experiência médica")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
       )
     );
 
     return interaction.showModal(modal);
   }
 
-  // 📩 ENVIO
+  // =========================
+  // 📩 FORM + DM
+  // =========================
   if (interaction.isModalSubmit() && interaction.customId === "form_set") {
 
     const nome = interaction.fields.getTextInputValue("nome");
     const id = interaction.fields.getTextInputValue("id");
+    const experiencia = interaction.fields.getTextInputValue("experiencia");
 
-    const channel = await interaction.guild.channels.fetch(APPROVAL_CHANNEL_ID);
+    const channel = await interaction.guild.channels.fetch(APPROVAL_CHANNEL_ID).catch(() => null);
+
+    if (!channel) {
+      return interaction.reply({
+        content: "❌ Canal de análise não encontrado.",
+        flags: 64
+      });
+    }
 
     const embed = new EmbedBuilder()
       .setColor("#facc15")
       .setTitle("📋 NOVO CADASTRO")
       .addFields(
-        { name: "Nome", value: nome },
-        { name: "ID", value: id }
+        { name: "👤 Nome", value: nome },
+        { name: "🆔 ID", value: id },
+        { name: "🩺 Experiência", value: experiencia },
+        { name: "📌 Discord", value: `<@${interaction.user.id}>` }
       );
 
     const row = new ActionRowBuilder().addComponents(
@@ -178,8 +241,26 @@ client.on("interactionCreate", async (interaction) => {
 
     await channel.send({ embeds: [embed], components: [row] });
 
+    const invite = "https://discord.gg/y6tJAK3fF5";
+
+    try {
+      await interaction.user.send(
+`🏥 **HOSPITAL BELLA**
+
+📌 Para continuar seu processo de recrutamento, você precisa fazer o pedido de set.
+
+🔗 ${invite}
+
+⚠️ Pedir set. Se não fizer, pode ser recusado.
+
+👨‍⚕️ Aguarde análise da equipe médica.`
+      );
+    } catch (err) {
+      console.log("❌ DM bloqueada:", interaction.user.tag);
+    }
+
     return interaction.reply({
-      content: "📨 Enviado!",
+      content: "📨 Enviado para análise! Verifique seu privado 📩",
       flags: 64
     });
   }
@@ -187,12 +268,17 @@ client.on("interactionCreate", async (interaction) => {
   // =========================
   // ✅ APROVAR / ❌ RECUSAR
   // =========================
-  if (interaction.isButton()) {
+  if (
+    interaction.isButton() &&
+    (interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("recusar_"))
+  ) {
+
+    await interaction.deferReply({ flags: 64 });
 
     const executor = await interaction.guild.members.fetch(interaction.user.id);
 
     if (!executor.roles.cache.has(LEADER_ROLE_ID)) {
-      return interaction.reply({ content: "❌ Sem permissão.", flags: 64 });
+      return interaction.editReply("❌ Sem permissão.");
     }
 
     const [action, userId] = interaction.customId.split("_");
@@ -205,54 +291,64 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.message.delete().catch(() => {});
 
     if (action === "recusar") {
-      return interaction.reply({ content: "❌ Recusado", flags: 64 });
+      return interaction.editReply(`❌ RECUSADO\n\n👤 ${nome}\n🆔 ${id}`);
     }
 
     // ✅ APROVAR
-    await member.roles.add([
-      ROLE_PARAMEDICO_ID,
-      ROLE_MEMBRO_HP_ID
-    ]);
+    if (action === "aprovar") {
 
-    let nick = `[HP] ${nome} | ${id}`;
-    if (nick.length > 32) nick = nick.slice(0, 32);
-    await member.setNickname(nick).catch(() => {});
+      await member.roles.add([
+        ROLE_PARAMEDICO_ID,
+        ROLE_MEMBRO_HP_ID
+      ]);
 
-    const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID);
+      let nick = `[PARM] ${nome} | ${id}`;
+      if (nick.length > 32) nick = nick.slice(0, 32);
 
-    // 💎 NOVO MODELO IGUAL IMAGEM
-    const prontuarioEmbed = new EmbedBuilder()
-      .setColor("#5a1a0e")
-      .setTitle("📋 PEDIDO DE SET")
-      .setDescription(
-        "```" +
+      await member.setNickname(nick).catch(() => {});
+
+      const requestChannel = await interaction.guild.channels.fetch(REQUEST_CHANNEL_ID).catch(() => null);
+
+      if (requestChannel) {
+
+        // 🔥 AQUI ESTÁ A ÚNICA MUDANÇA (IGUAL IMAGEM)
+        const prontuarioEmbed = new EmbedBuilder()
+          .setColor("#5a1a0e")
+          .setTitle("📋 PEDIDO DE SET")
+          .setDescription(
+            "```" +
 `Nome: ${nome}
 ID: ${id}
 Unidade: hp
 Cargo: Diretor
 Responsável: ${interaction.user.username}` +
-        "```"
-      )
-      .addFields(
-        {
-          name: "👤 Usuário",
-          value: `<@${member.id}>`
-        },
-        {
-          name: "📌 Status",
-          value: `Aprovado por <@${interaction.user.id}> ✅`
-        }
-      )
-      .setTimestamp();
+            "```"
+          )
+          .addFields(
+            {
+              name: "👤 Usuário",
+              value: `<@${member.id}>`,
+              inline: false
+            },
+            {
+              name: "📌 Status",
+              value: `Aprovado por <@${interaction.user.id}> ✅`,
+              inline: false
+            }
+          )
+          .setTimestamp();
 
-    await requestChannel.send({ embeds: [prontuarioEmbed] });
+        await requestChannel.send({ embeds: [prontuarioEmbed] });
+      }
 
-    return interaction.reply({
-      content: "✅ Aprovado!",
-      flags: 64
-    });
+      return interaction.editReply(`✅ APROVADO\n\n👤 ${nome}\n🆔 ${id}\n🏷️ ${nick}`);
+    }
   }
 });
 
 // 🔑 LOGIN
 client.login(TOKEN);
+
+// 💥 ANTI CRASH
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);
